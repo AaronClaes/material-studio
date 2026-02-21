@@ -64,16 +64,18 @@ export function BaseNode({
 
   return (
     <>
-      <PreviewModal
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        title={label}
-        dataUrl={resultPreview ?? null}
-        nodeId={nodeId}
-      />
+      {
+        <PreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          title={label}
+          dataUrl={resultPreview ?? null}
+          nodeId={nodeId}
+        />
+      }
       <Card
         className={cn(
-          'w-[240px] rounded-none shadow-md py-0 gap-1',
+          'w-[260px] rounded-none shadow-md py-0 gap-1',
           selected && 'ring-2 ring-primary',
         )}
       >

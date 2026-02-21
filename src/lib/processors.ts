@@ -135,7 +135,12 @@ export function processColorNode(
     const r = parseInt(tint.slice(1, 3), 16) / 255
     const g = parseInt(tint.slice(3, 5), 16) / 255
     const b = parseInt(tint.slice(5, 7), 16) / 255
-    const imageData = dstCtx.getImageData(0, 0, dstCanvas.width, dstCanvas.height)
+    const imageData = dstCtx.getImageData(
+      0,
+      0,
+      dstCanvas.width,
+      dstCanvas.height,
+    )
     const d = imageData.data
     for (let i = 0; i < d.length; i += 4) {
       d[i] = Math.round(d[i] * r)
@@ -164,6 +169,174 @@ export function processOutputNode(
   const dataUrl = canvas.toDataURL(mimeMap[params.format])
 
   return Promise.resolve({ imageData: input, dataUrl })
+}
+
+function boxBlur1D(
+  data: Float32Array,
+  width: number,
+  height: number,
+  radius: number,
+): Float32Array {
+  const out = new Float32Array(data.length)
+  const r = Math.max(1, Math.round(radius))
+
+  // Horizontal pass
+  const tmp = new Float32Array(data.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let count = 0
+      for (let dx = -r; dx <= r; dx++) {
+        const sx = Math.max(0, Math.min(width - 1, x + dx))
+        sum += data[y * width + sx]
+        count++
+      }
+      tmp[y * width + x] = sum / count
+    }
+  }
+
+  // Vertical pass
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let count = 0
+      for (let dy = -r; dy <= r; dy++) {
+        const sy = Math.max(0, Math.min(height - 1, y + dy))
+        sum += tmp[sy * width + x]
+        count++
+      }
+      out[y * width + x] = sum / count
+    }
+  }
+
+  return out
+}
+
+function applyBlurSharp(
+  data: Float32Array,
+  width: number,
+  height: number,
+  blurSharp: number,
+): Float32Array<ArrayBufferLike> {
+  if (blurSharp > 0) {
+    let result = data
+    for (let i = 0; i < 3; i++) {
+      result = boxBlur1D(result, width, height, blurSharp)
+    }
+    return result
+  } else {
+    // Unsharp mask: sharpen
+    const factor = Math.abs(blurSharp) / 8
+    const blurred = boxBlur1D(data, width, height, 1)
+    const out = new Float32Array(data.length)
+    for (let i = 0; i < data.length; i++) {
+      out[i] = Math.max(
+        0,
+        Math.min(1, data[i] + factor * (data[i] - blurred[i])),
+      )
+    }
+    return out
+  }
+}
+
+export function processNormalmapNode(
+  input: ImageData,
+  params: {
+    strength: number
+    level: number
+    blurSharp: number
+    filter: 'sobel' | 'scharr'
+    invertR: boolean
+    invertG: boolean
+    invertHeight: boolean
+    zRange: boolean
+  },
+): Promise<ImageData> {
+  const { width, height } = input
+  const src = input.data
+
+  // Convert to grayscale height map via BT.709 luminance
+  let heights: Float32Array<ArrayBufferLike> = new Float32Array(width * height)
+  for (let i = 0; i < width * height; i++) {
+    const r = src[i * 4] / 255
+    const g = src[i * 4 + 1] / 255
+    const b = src[i * 4 + 2] / 255
+    heights[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+
+  if (params.invertHeight) {
+    for (let i = 0; i < heights.length; i++) {
+      heights[i] = 1 - heights[i]
+    }
+  }
+
+  if (params.blurSharp !== 0) {
+    heights = applyBlurSharp(heights, width, height, params.blurSharp)
+  }
+
+  const sobelX = [
+    [-1, 0, 1],
+    [-2, 0, 2],
+    [-1, 0, 1],
+  ]
+  const sobelY = [
+    [-1, -2, -1],
+    [0, 0, 0],
+    [1, 2, 1],
+  ]
+  const scharrX = [
+    [-3, 0, 3],
+    [-10, 0, 10],
+    [-3, 0, 3],
+  ]
+  const scharrY = [
+    [-3, -10, -3],
+    [0, 0, 0],
+    [3, 10, 3],
+  ]
+  const kX = params.filter === 'scharr' ? scharrX : sobelX
+  const kY = params.filter === 'scharr' ? scharrY : sobelY
+
+  const scale = params.strength * params.level
+  const out = new Uint8ClampedArray(width * height * 4)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let dX = 0
+      let dY = 0
+      for (let ky = 0; ky < 3; ky++) {
+        for (let kx = 0; kx < 3; kx++) {
+          const sx = Math.max(0, Math.min(width - 1, x + kx - 1))
+          const sy = Math.max(0, Math.min(height - 1, y + ky - 1))
+          const h = heights[sy * width + sx]
+          dX += h * kX[ky][kx]
+          dY += h * kY[ky][kx]
+        }
+      }
+
+      // Compute normal and normalize
+      let nx = -dX * scale
+      let ny = -dY * scale
+      let nz = 1.0
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz)
+      nx /= len
+      ny /= len
+      nz /= len
+
+      if (params.invertR) nx = -nx
+      if (params.invertG) ny = -ny
+
+      const idx = (y * width + x) * 4
+      out[idx] = Math.round(((nx + 1) / 2) * 255)
+      out[idx + 1] = Math.round(((ny + 1) / 2) * 255)
+      out[idx + 2] = params.zRange
+        ? Math.round(((nz + 1) / 2) * 255)
+        : Math.round(nz * 127 + 128)
+      out[idx + 3] = 255
+    }
+  }
+
+  return Promise.resolve(new ImageData(out, width, height))
 }
 
 /** Convert ImageData to a full-resolution PNG data URL for display. */

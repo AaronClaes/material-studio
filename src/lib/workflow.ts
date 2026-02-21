@@ -4,6 +4,7 @@ import type {
   CropNodeData,
   InputNodeData,
   NodeKind,
+  NormalmapNodeData,
   OutputNodeData,
   ResolutionNodeData,
   StudioNode,
@@ -33,6 +34,11 @@ export const NODE_META: Record<
     label: 'Color',
     icon: 'palette',
     description: 'Brightness, contrast & hue',
+  },
+  normalmap: {
+    label: 'Normal Map',
+    icon: 'vector-triangle',
+    description: 'Generate a normal map from a height map',
   },
   outputNode: {
     label: 'Output',
@@ -83,6 +89,20 @@ function defaultData(kind: NodeKind): StudioNodeData {
         tintColor: '#ffffff',
         live: false,
       } satisfies ColorNodeData
+    case 'normalmap':
+      return {
+        kind: 'normalmap',
+        label: 'Normal Map',
+        strength: 1,
+        level: 7,
+        blurSharp: 0,
+        filter: 'sobel',
+        invertR: false,
+        invertG: false,
+        invertHeight: false,
+        zRange: false,
+        live: false,
+      } satisfies NormalmapNodeData
     case 'outputNode':
       return {
         kind: 'outputNode',

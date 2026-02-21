@@ -19,6 +19,7 @@ import { OutputNode } from './nodes/output-node'
 import { CropNode } from './nodes/crop-node'
 import { ResolutionNode } from './nodes/resolution-node'
 import { ColorNode } from './nodes/color-node'
+import { NormalmapNode } from './nodes/normalmap-node'
 import type {
   Connection,
   EdgeChange,
@@ -37,6 +38,7 @@ const nodeTypes: NodeTypes = {
   crop: CropNode,
   resolution: ResolutionNode,
   color: ColorNode,
+  normalmap: NormalmapNode,
 }
 
 export function StudioCanvas() {

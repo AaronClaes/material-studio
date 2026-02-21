@@ -5,6 +5,7 @@ export type NodeKind =
   | 'crop'
   | 'resolution'
   | 'color'
+  | 'normalmap'
   | 'outputNode'
 
 export interface InputNodeData {
@@ -44,6 +45,21 @@ export interface ColorNodeData {
   disabled?: boolean
 }
 
+export interface NormalmapNodeData {
+  kind: 'normalmap'
+  label: string
+  strength: number
+  level: number
+  blurSharp: number
+  filter: 'sobel' | 'scharr'
+  invertR: boolean
+  invertG: boolean
+  invertHeight: boolean
+  zRange: boolean
+  live?: boolean
+  disabled?: boolean
+}
+
 export interface OutputNodeData {
   kind: 'outputNode'
   label: string
@@ -57,6 +73,7 @@ export type StudioNodeData = (
   | CropNodeData
   | ResolutionNodeData
   | ColorNodeData
+  | NormalmapNodeData
   | OutputNodeData
 ) & Record<string, unknown>
 

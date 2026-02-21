@@ -102,7 +102,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
           id: `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           name: `${wf.name} copy`,
           nodes: wf.nodes.map((n) =>
-            n.data.kind === 'inputNode' ? { ...n, data: { ...n.data, src: '' } } : n,
+            n.data.kind === 'inputNode'
+              ? { ...n, data: { ...n.data, src: '' } }
+              : n,
           ),
           edges: wf.edges,
           results: {},

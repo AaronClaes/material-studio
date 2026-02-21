@@ -5,6 +5,7 @@ import {
   IconPalette,
   IconPhoto,
   IconPlus,
+  IconVectorTriangle,
 } from '@tabler/icons-react'
 import type { ElementType } from 'react'
 import type { NodeKind, StudioNode } from '@/types/studio'
@@ -22,6 +23,7 @@ const NODE_KINDS: Array<NodeKind> = [
   'crop',
   'resolution',
   'color',
+  'normalmap',
   'outputNode',
 ]
 
@@ -30,6 +32,7 @@ const NODE_ICONS: Record<NodeKind, ElementType> = {
   crop: IconCrop,
   resolution: IconMaximize,
   color: IconPalette,
+  normalmap: IconVectorTriangle,
   outputNode: IconDownload,
 }
 

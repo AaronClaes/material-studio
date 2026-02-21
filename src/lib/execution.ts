@@ -3,6 +3,7 @@ import {
   processColorNode,
   processCropNode,
   processInputNode,
+  processNormalmapNode,
   processOutputNode,
   processResolutionNode,
 } from './processors'
@@ -105,6 +106,20 @@ async function processNode(
       saturation: data.saturation,
       hue: data.hue,
       tintColor: data.tintColor,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (data.kind === 'normalmap') {
+    const imageData = await processNormalmapNode(input, {
+      strength: data.strength,
+      level: data.level,
+      blurSharp: data.blurSharp,
+      filter: data.filter,
+      invertR: data.invertR,
+      invertG: data.invertG,
+      invertHeight: data.invertHeight,
+      zRange: data.zRange,
     })
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
   }
