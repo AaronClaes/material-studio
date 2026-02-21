@@ -2,9 +2,10 @@ import { useReactFlow } from '@xyflow/react'
 import { IconPalette } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { StudioNode } from '@/types/studio'
+import type { NodeResult, StudioNode } from '@/types/studio'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import { useExecutionStore } from '@/lib/execution-store'
 
 interface SliderRowProps {
   label: string
@@ -37,6 +38,8 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'color') return null
 
   const { setNodes } = useReactFlow()
+  const result = useExecutionStore((s) => s.results[id] as NodeResult | undefined)
+  const isRunning = useExecutionStore((s) => s.isRunning)
 
   function update(patch: Partial<typeof data>) {
     setNodes((nodes) =>
@@ -51,6 +54,10 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
       label={data.label}
       icon={<IconPalette size={14} />}
       selected={selected}
+      nodeStatus={result?.status}
+      resultPreview={result?.outputDataUrl}
+      nodeError={result?.error}
+      isRunning={isRunning}
     >
       <div className="space-y-2.5">
         <SliderRow

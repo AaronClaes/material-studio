@@ -2,14 +2,17 @@ import { useReactFlow } from '@xyflow/react'
 import { IconCrop } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { StudioNode } from '@/types/studio'
+import type { NodeResult, StudioNode } from '@/types/studio'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useExecutionStore } from '@/lib/execution-store'
 
 export function CropNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'crop') return null
 
   const { setNodes } = useReactFlow()
+  const result = useExecutionStore((s) => s.results[id] as NodeResult | undefined)
+  const isRunning = useExecutionStore((s) => s.isRunning)
 
   function update(patch: Partial<typeof data>) {
     setNodes((nodes) =>
@@ -24,6 +27,10 @@ export function CropNode({ id, data, selected }: NodeProps<StudioNode>) {
       label={data.label}
       icon={<IconCrop size={14} />}
       selected={selected}
+      nodeStatus={result?.status}
+      resultPreview={result?.outputDataUrl}
+      nodeError={result?.error}
+      isRunning={isRunning}
     >
       <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
         {(

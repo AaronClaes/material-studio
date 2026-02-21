@@ -1,6 +1,6 @@
 # material-studio
 
-A TanStack Start project with React 19, TypeScript, Tailwind CSS v4, and shadcn/ui.
+A node-based texture/image processing studio built with TanStack Start, React 19, TypeScript, Tailwind CSS v4, and shadcn/ui.
 
 ## Commands
 
@@ -14,10 +14,11 @@ pnpm check        # Prettier format + ESLint fix
 
 ## Tech Stack
 
-- **Framework**: TanStack Start (SSR) + TanStack Router (file-based)
+- **Framework**: TanStack Start (SSR via Nitro) + TanStack Router (file-based)
+- **Node Editor**: `@xyflow/react` — core canvas for the workflow/node graph
 - **UI**: shadcn/ui (`radix-lyra` style), Base UI, Radix UI
 - **Icons**: Tabler Icons (`@tabler/icons-react`)
-- **Styling**: Tailwind CSS v4 (via `@tailwindcss/vite`)
+- **Styling**: Tailwind CSS v4 (via `@tailwindcss/vite`, inline theme in CSS)
 - **Build**: Vite + Nitro
 - **Testing**: Vitest + Testing Library
 
@@ -28,9 +29,14 @@ src/
   routes/         # File-based routes (TanStack Router)
   components/
     ui/           # shadcn/ui components
+    studio/       # Node-based editor components
+      nodes/      # Custom node types (input, output, crop, color, resolution)
+  types/
+    studio.ts     # Type definitions for workflow nodes
   lib/
     utils.ts      # cn() helper (clsx + tailwind-merge)
-  styles.css      # Global styles + Tailwind
+    workflow.ts   # Workflow node factory and metadata
+  styles.css      # Global styles + Tailwind (with React Flow overrides)
 ```
 
 ## Path Aliases

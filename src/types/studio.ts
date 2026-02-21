@@ -55,3 +55,11 @@ export type StudioNodeData = (
 
 export type StudioNode = Node<StudioNodeData, NodeKind>
 export type StudioEdge = Edge
+
+export type NodeStatus = 'idle' | 'running' | 'done' | 'error'
+export interface NodeResult {
+  status: NodeStatus
+  outputDataUrl: string | null
+  error: string | null
+}
+export type ExecutionResults = Record<string, NodeResult>

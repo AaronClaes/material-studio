@@ -22,6 +22,7 @@ import { ColorNode } from './nodes/color-node'
 import type { Connection, NodeTypes } from '@xyflow/react'
 import type { StudioEdge, StudioNode } from '@/types/studio'
 import { createInitialGraph } from '@/lib/workflow'
+import { useExecutionStore } from '@/lib/execution-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode as React.ComponentType<any>,
@@ -39,6 +40,8 @@ export function StudioCanvas() {
   const [edges, setEdges, onEdgesChange] =
     useEdgesState<StudioEdge>(initialEdges)
 
+  const { run, isRunning } = useExecutionStore()
+
   const onConnect = useCallback(
     (connection: Connection) =>
       setEdges((eds) => addEdge({ ...connection, type: 'smoothstep' }, eds)),
@@ -47,7 +50,11 @@ export function StudioCanvas() {
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <StudioToolbar onAddNode={(node) => setNodes((ns) => [...ns, node])} />
+      <StudioToolbar
+        onAddNode={(node) => setNodes((ns) => [...ns, node])}
+        onRunWorkflow={() => run(nodes, edges)}
+        isRunning={isRunning}
+      />
       <div className="flex-1">
         <ReactFlow
           nodes={nodes}

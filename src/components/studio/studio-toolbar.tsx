@@ -1,4 +1,4 @@
-import { IconPlus } from '@tabler/icons-react'
+import { IconPlayerPlay, IconPlus } from '@tabler/icons-react'
 import type { NodeKind, StudioNode } from '@/types/studio'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,9 +19,15 @@ const NODE_KINDS: Array<NodeKind> = [
 
 interface StudioToolbarProps {
   onAddNode: (node: StudioNode) => void
+  onRunWorkflow: () => void
+  isRunning: boolean
 }
 
-export function StudioToolbar({ onAddNode }: StudioToolbarProps) {
+export function StudioToolbar({
+  onAddNode,
+  onRunWorkflow,
+  isRunning,
+}: StudioToolbarProps) {
   function handleAdd(kind: NodeKind) {
     const node = createNode(kind, { x: 240, y: 160 })
     onAddNode(node)
@@ -32,24 +38,35 @@ export function StudioToolbar({ onAddNode }: StudioToolbarProps) {
       <span className="text-sm font-semibold tracking-tight">
         Material Studio
       </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" className="gap-1.5">
-            <IconPlus size={14} />
-            Add Node
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {NODE_KINDS.map((kind) => (
-            <DropdownMenuItem key={kind} onSelect={() => handleAdd(kind)}>
-              <span className="capitalize">{NODE_META[kind].label}</span>
-              <span className="ml-2 text-xs text-muted-foreground">
-                {NODE_META[kind].description}
-              </span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          onClick={onRunWorkflow}
+          disabled={isRunning}
+          className="gap-1.5"
+        >
+          <IconPlayerPlay size={14} />
+          {isRunning ? 'Running…' : 'Run Workflow'}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1.5">
+              <IconPlus size={14} />
+              Add Node
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {NODE_KINDS.map((kind) => (
+              <DropdownMenuItem key={kind} onSelect={() => handleAdd(kind)}>
+                <span className="capitalize">{NODE_META[kind].label}</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {NODE_META[kind].description}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }
