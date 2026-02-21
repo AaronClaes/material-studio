@@ -52,6 +52,7 @@ export function CropNode({ id, data, selected }: NodeProps<StudioNode>) {
       onToggleDisabled={toggleDisabled}
       onRun={() => runNode(id)}
       onRunNodes={() => runNodesFrom(id)}
+      nodeId={id}
     >
       <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
         {(

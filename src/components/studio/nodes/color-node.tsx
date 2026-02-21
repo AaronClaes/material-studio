@@ -146,6 +146,7 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
       onRunNodes={() => runNodesFrom(id)}
       liveMode={data.live}
       onToggleLive={toggleLive}
+      nodeId={id}
     >
       <div className="space-y-2.5">
         {/* Tint color — multiplicative, like Three.js material color */}

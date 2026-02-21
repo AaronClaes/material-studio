@@ -52,6 +52,7 @@ export function ResolutionNode({ id, data, selected }: NodeProps<StudioNode>) {
       onToggleDisabled={toggleDisabled}
       onRun={() => runNode(id)}
       onRunNodes={() => runNodesFrom(id)}
+      nodeId={id}
     >
       <div className="space-y-1.5">
         <div className="grid grid-cols-2 gap-2">

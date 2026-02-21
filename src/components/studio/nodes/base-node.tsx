@@ -33,6 +33,7 @@ interface BaseNodeProps {
   onToggleDisabled?: () => void
   liveMode?: boolean
   onToggleLive?: () => void
+  nodeId: string
 }
 
 export function BaseNode({
@@ -54,6 +55,7 @@ export function BaseNode({
   onToggleDisabled,
   liveMode,
   onToggleLive,
+  nodeId,
 }: BaseNodeProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
@@ -67,6 +69,7 @@ export function BaseNode({
         onOpenChange={setPreviewOpen}
         title={label}
         dataUrl={resultPreview ?? null}
+        nodeId={nodeId}
       />
       <Card
         className={cn(
@@ -87,6 +90,26 @@ export function BaseNode({
           {/* Per-node run buttons */}
           {(onRun || onRunNodes || onToggleDisabled || onToggleLive) && (
             <div className="flex gap-1.5 ml-auto pl-4">
+              {onToggleLive && (
+                <Button
+                  size="icon-xs"
+                  variant={liveMode ? 'default' : 'ghost'}
+                  onClick={onToggleLive}
+                  title={liveMode ? 'Live preview: on' : 'Live preview: off'}
+                >
+                  <IconBolt size={14} />
+                </Button>
+              )}
+              {onToggleDisabled && (
+                <Button
+                  size="icon-xs"
+                  variant={disabled ? 'secondary' : 'ghost'}
+                  onClick={onToggleDisabled}
+                  title={disabled ? 'Enable node' : 'Disable node'}
+                >
+                  <IconPower size={14} />
+                </Button>
+              )}
               {onRun && (
                 <Button
                   size="icon-xs"
@@ -105,26 +128,6 @@ export function BaseNode({
                   onClick={onRunNodes}
                 >
                   <IconPlayerTrackNext size={14} />
-                </Button>
-              )}
-              {onToggleLive && (
-                <Button
-                  size="icon-xs"
-                  variant={liveMode ? 'default' : 'ghost'}
-                  onClick={onToggleLive}
-                  title={liveMode ? 'Live preview: on' : 'Live preview: off'}
-                >
-                  <IconBolt size={14} />
-                </Button>
-              )}
-              {onToggleDisabled && (
-                <Button
-                  size="xs"
-                  variant={disabled ? 'secondary' : 'ghost'}
-                  onClick={onToggleDisabled}
-                  title={disabled ? 'Enable node' : 'Disable node'}
-                >
-                  <IconPower size={14} />
                 </Button>
               )}
             </div>

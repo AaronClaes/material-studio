@@ -42,6 +42,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       isRunning={isRunning}
       hasValidInput={!!data.src}
       onRunNodes={run}
+      nodeId={id}
     >
       <div className="space-y-1.5">
         <Label className="text-xs">Image File</Label>

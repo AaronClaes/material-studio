@@ -122,6 +122,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
       disabled={data.disabled}
       onToggleDisabled={toggleDisabled}
       onRun={() => runNode(id)}
+      nodeId={id}
     >
       <div className="flex flex-col gap-2">
         <div className="space-y-1.5">
