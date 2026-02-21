@@ -20,6 +20,7 @@ export interface CropNodeData {
   y: number
   width: number
   height: number
+  disabled?: boolean
 }
 
 export interface ResolutionNodeData {
@@ -28,6 +29,7 @@ export interface ResolutionNodeData {
   width: number
   height: number
   maintainAspect: boolean
+  disabled?: boolean
 }
 
 export interface ColorNodeData {
@@ -37,6 +39,7 @@ export interface ColorNodeData {
   contrast: number
   saturation: number
   hue: number
+  disabled?: boolean
 }
 
 export interface OutputNodeData {
@@ -44,6 +47,7 @@ export interface OutputNodeData {
   label: string
   format: 'png' | 'jpg' | 'webp'
   filename: string
+  disabled?: boolean
 }
 
 export type StudioNodeData = (
@@ -57,7 +61,7 @@ export type StudioNodeData = (
 export type StudioNode = Node<StudioNodeData, NodeKind>
 export type StudioEdge = Edge
 
-export type NodeStatus = 'idle' | 'running' | 'done' | 'error'
+export type NodeStatus = 'idle' | 'running' | 'done' | 'error' | 'skipped'
 export interface NodeResult {
   status: NodeStatus
   outputDataUrl: string | null

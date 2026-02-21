@@ -3,6 +3,7 @@ import {
   IconPhoto,
   IconPlayerPlay,
   IconPlayerTrackNext,
+  IconPower,
 } from '@tabler/icons-react'
 import type { NodeStatus } from '@/types/studio'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,6 +27,8 @@ interface BaseNodeProps {
   onRun?: () => void
   onRunNodes?: () => void
   hasValidInput?: boolean
+  disabled?: boolean
+  onToggleDisabled?: () => void
 }
 
 export function BaseNode({
@@ -43,6 +46,8 @@ export function BaseNode({
   onRun,
   onRunNodes,
   hasValidInput,
+  disabled,
+  onToggleDisabled,
 }: BaseNodeProps) {
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
@@ -67,13 +72,13 @@ export function BaseNode({
         <span className="text-muted-foreground">{icon}</span>
         <CardTitle className="text-sm font-medium">{label}</CardTitle>
         {/* Per-node run buttons */}
-        {(onRun || onRunNodes) && (
+        {(onRun || onRunNodes || onToggleDisabled) && (
           <div className="flex gap-1.5 ml-auto pl-4">
             {onRun && (
               <Button
                 size="xs"
                 variant="outline"
-                disabled={!hasValidInput || isRunning}
+                disabled={!hasValidInput || isRunning || disabled}
                 onClick={onRun}
               >
                 <IconPlayerPlay size={14} />
@@ -83,10 +88,20 @@ export function BaseNode({
               <Button
                 size="xs"
                 variant="outline"
-                disabled={!hasValidInput || isRunning}
+                disabled={!hasValidInput || isRunning || disabled}
                 onClick={onRunNodes}
               >
                 <IconPlayerTrackNext size={14} />
+              </Button>
+            )}
+            {onToggleDisabled && (
+              <Button
+                size="xs"
+                variant={disabled ? 'secondary' : 'ghost'}
+                onClick={onToggleDisabled}
+                title={disabled ? 'Enable node' : 'Disable node'}
+              >
+                <IconPower size={14} />
               </Button>
             )}
           </div>
@@ -94,7 +109,7 @@ export function BaseNode({
       </CardHeader>
 
       {/* Status / preview — above settings */}
-      {hasStatusContent && (
+      {!disabled && hasStatusContent && (
         <div className="px-3 pb-2 pt-0">
           {showRunning && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -135,9 +150,16 @@ export function BaseNode({
       )}
 
       {/* Preview — always visible, 1:1 square */}
-      <div className="px-3 pb-2 pt-0">
+      <div className={cn('px-3 pb-2 pt-0', disabled && 'opacity-50')}>
         <div className="relative aspect-square w-full overflow-hidden rounded-sm border bg-muted">
-          {resultPreview ? (
+          {disabled ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5">
+              <IconPower size={20} className="text-muted-foreground/50" />
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">
+                Disabled
+              </span>
+            </div>
+          ) : resultPreview ? (
             <img
               src={resultPreview}
               alt="Output preview"
@@ -153,7 +175,17 @@ export function BaseNode({
 
       {/* Settings */}
       {children && (
-        <CardContent className="px-3 pb-3 pt-0">{children}</CardContent>
+        <CardContent className="px-3 pb-3 pt-0">
+          <fieldset
+            disabled={disabled}
+            className={cn(
+              'border-0 p-0 m-0 min-w-0',
+              disabled && 'opacity-50 pointer-events-none',
+            )}
+          >
+            {children}
+          </fieldset>
+        </CardContent>
       )}
 
       {hasOutput && (

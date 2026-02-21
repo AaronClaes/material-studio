@@ -67,6 +67,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           },
         }))
       },
+      onNodeSkipped: (id, dataUrl) => {
+        set((s) => ({
+          results: {
+            ...s.results,
+            [id]: { status: 'skipped', outputDataUrl: dataUrl, error: null },
+          },
+        }))
+      },
     })
 
     set({ isRunning: false })
@@ -77,6 +85,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
     const node = nodes.find((n) => n.id === nodeId)
     if (!node) return
+    if (node.data.kind !== 'inputNode' && node.data.disabled) return
 
     let input: ImageData
 
@@ -114,6 +123,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           results: {
             ...s.results,
             [id]: { status: 'error', outputDataUrl: null, error },
+          },
+        }))
+      },
+      onNodeSkipped: (id, dataUrl) => {
+        set((s) => ({
+          results: {
+            ...s.results,
+            [id]: { status: 'skipped', outputDataUrl: dataUrl, error: null },
           },
         }))
       },
@@ -173,6 +190,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           results: {
             ...s.results,
             [id]: { status: 'error', outputDataUrl: null, error },
+          },
+        }))
+      },
+      onNodeSkipped: (id, dataUrl) => {
+        set((s) => ({
+          results: {
+            ...s.results,
+            [id]: { status: 'skipped', outputDataUrl: dataUrl, error: null },
           },
         }))
       },

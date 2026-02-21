@@ -30,7 +30,7 @@ const supportsDirectoryPicker = 'showDirectoryPicker' in window
 export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
-  const { setNodes, getNodes, getEdges } = useReactFlow()
+  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
   const result = useExecutionStore((s) => s.results[id])
   const results = useExecutionStore((s) => s.results)
   const isRunning = useExecutionStore((s) => s.isRunning)
@@ -43,7 +43,14 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   const upstreamId = (getEdges() as Array<StudioEdge>).find(
     (e) => e.target === id,
   )?.source
-  const hasValidInput = !!upstreamId && !!results[upstreamId]?.outputDataUrl
+  const upstreamStatus = upstreamId ? results[upstreamId]?.status : undefined
+  const hasValidInput =
+    !!upstreamId &&
+    (upstreamStatus === 'done' || upstreamStatus === 'skipped')
+
+  function toggleDisabled() {
+    updateNodeData(id, { disabled: !data.disabled })
+  }
 
   // Auto-save to selected folder whenever status transitions to 'done'
   const prevStatusRef = useRef<string | undefined>(undefined)
@@ -112,6 +119,8 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
       isRunning={isRunning}
       waitingLabel="Processing workflow…"
       hasValidInput={hasValidInput}
+      disabled={data.disabled}
+      onToggleDisabled={toggleDisabled}
       onRun={() =>
         runNode(
           id,

@@ -37,7 +37,7 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'color') return null
 
-  const { setNodes, getNodes, getEdges } = useReactFlow()
+  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
   const edges = useEdges()
   const result = useExecutionStore((s) => s.results[id])
   const isRunning = useExecutionStore((s) => s.isRunning)
@@ -46,7 +46,8 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
 
   const upstreamId = edges.find((e) => e.target === id)?.source
   const upstreamResult = useExecutionStore((s) => s.results[upstreamId ?? ''])
-  const hasValidInput = upstreamResult?.status === 'done'
+  const hasValidInput =
+    upstreamResult?.status === 'done' || upstreamResult?.status === 'skipped'
 
   function update(patch: Partial<typeof data>) {
     setNodes((nodes) =>
@@ -54,6 +55,10 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
         n.id === id ? { ...n, data: { ...n.data, ...patch } } : n,
       ),
     )
+  }
+
+  function toggleDisabled() {
+    updateNodeData(id, { disabled: !data.disabled })
   }
 
   return (
@@ -66,6 +71,8 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
       nodeError={result?.error}
       isRunning={isRunning}
       hasValidInput={hasValidInput}
+      disabled={data.disabled}
+      onToggleDisabled={toggleDisabled}
       onRun={() =>
         runNode(
           id,

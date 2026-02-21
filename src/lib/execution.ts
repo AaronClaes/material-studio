@@ -54,6 +54,7 @@ export interface RunCallbacks {
   onNodeStart: (id: string) => void
   onNodeDone: (id: string, dataUrl: string) => void
   onNodeError: (id: string, error: string) => void
+  onNodeSkipped: (id: string, dataUrl: string) => void
 }
 
 /**
@@ -127,6 +128,17 @@ async function executeOrder(
   for (const id of order) {
     const node = nodeMap.get(id)
     if (!node) continue
+
+    // Skip disabled nodes — thread upstream data through unchanged
+    if (node.data.kind !== 'inputNode' && node.data.disabled) {
+      const upstreamId = incomingEdge.get(id)
+      const upstreamData = upstreamId ? outputs.get(upstreamId) : undefined
+      if (upstreamData) {
+        outputs.set(id, upstreamData)
+        callbacks.onNodeSkipped(id, imageDataToDataUrl(upstreamData))
+      }
+      continue
+    }
 
     callbacks.onNodeStart(id)
 

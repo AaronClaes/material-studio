@@ -78,7 +78,7 @@ export function StudioCanvas() {
             <MiniMap />
           </ReactFlow>
         </div>
-        {selectedNode && (
+        {selectedNode && !selectedNode.data.disabled && (
           <NodeInspectorPanel node={selectedNode} result={selectedResult} />
         )}
       </div>
