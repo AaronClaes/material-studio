@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import {
+  IconMaximize,
   IconPhoto,
   IconPlayerPlay,
   IconPlayerTrackNext,
   IconPower,
 } from '@tabler/icons-react'
+import { PreviewModal } from '../preview-modal'
 import type { NodeStatus } from '@/types/studio'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,121 +50,145 @@ export function BaseNode({
   disabled,
   onToggleDisabled,
 }: BaseNodeProps) {
+  const [previewOpen, setPreviewOpen] = useState(false)
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
   const showError = nodeStatus === 'error'
 
   return (
-    <Card
-      className={cn(
-        'w-[240px] rounded-none shadow-md py-0 gap-1',
-        selected && 'ring-2 ring-primary',
-      )}
-    >
-      {hasInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="w-2.5! h-2.5! rounded-full border-2 border-primary bg-background!"
-        />
-      )}
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-2">
-        <span className="text-muted-foreground">{icon}</span>
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        {/* Per-node run buttons */}
-        {(onRun || onRunNodes || onToggleDisabled) && (
-          <div className="flex gap-1.5 ml-auto pl-4">
-            {onRun && (
-              <Button
-                size="xs"
-                variant="outline"
-                disabled={!hasValidInput || isRunning || disabled}
-                onClick={onRun}
-              >
-                <IconPlayerPlay size={14} />
-              </Button>
+    <>
+      <PreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title={label}
+        dataUrl={resultPreview ?? null}
+      />
+      <Card
+        className={cn(
+          'w-[240px] rounded-none shadow-md py-0 gap-1',
+          selected && 'ring-2 ring-primary',
+        )}
+      >
+        {hasInput && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            className="w-2.5! h-2.5! rounded-full border-2 border-primary bg-background!"
+          />
+        )}
+        <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-2">
+          <span className="text-muted-foreground">{icon}</span>
+          <CardTitle className="text-sm font-medium">{label}</CardTitle>
+          {/* Per-node run buttons */}
+          {(onRun || onRunNodes || onToggleDisabled) && (
+            <div className="flex gap-1.5 ml-auto pl-4">
+              {onRun && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={!hasValidInput || isRunning || disabled}
+                  onClick={onRun}
+                >
+                  <IconPlayerPlay size={14} />
+                </Button>
+              )}
+              {onRunNodes && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={!hasValidInput || isRunning || disabled}
+                  onClick={onRunNodes}
+                >
+                  <IconPlayerTrackNext size={14} />
+                </Button>
+              )}
+              {onToggleDisabled && (
+                <Button
+                  size="xs"
+                  variant={disabled ? 'secondary' : 'ghost'}
+                  onClick={onToggleDisabled}
+                  title={disabled ? 'Enable node' : 'Disable node'}
+                >
+                  <IconPower size={14} />
+                </Button>
+              )}
+            </div>
+          )}
+        </CardHeader>
+
+        {/* Preview — always visible, 1:1 square */}
+        <div className={cn('px-3 pb-2 pt-0', disabled && 'opacity-50')}>
+          <div className="group relative aspect-square w-full overflow-hidden border bg-muted">
+            {disabled ? (
+              <PreviewOverlay
+                icon={
+                  <IconPower size={20} className="text-muted-foreground/50" />
+                }
+                label="Disabled"
+              />
+            ) : showRunning ? (
+              <PreviewOverlay icon={<Spinner />} label="Processing…" />
+            ) : showError ? (
+              <PreviewOverlay
+                label={nodeError ?? 'Unknown error'}
+                labelClassName="text-destructive/80"
+                title={nodeError ?? ''}
+              />
+            ) : showWaiting ? (
+              <PreviewOverlay label={waitingLabel} />
+            ) : resultPreview ? (
+              <img
+                src={resultPreview}
+                alt="Output preview"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <IconPhoto size={24} className="text-muted-foreground/40" />
+              </div>
             )}
-            {onRunNodes && (
+            {/* Fullscreen button — only when there's an image to show */}
+            {resultPreview && !disabled && (
               <Button
-                size="xs"
-                variant="outline"
-                disabled={!hasValidInput || isRunning || disabled}
-                onClick={onRunNodes}
+                size="icon-sm"
+                variant="ghost"
+                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/70 hover:bg-background/90"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPreviewOpen(true)
+                }}
               >
-                <IconPlayerTrackNext size={14} />
-              </Button>
-            )}
-            {onToggleDisabled && (
-              <Button
-                size="xs"
-                variant={disabled ? 'secondary' : 'ghost'}
-                onClick={onToggleDisabled}
-                title={disabled ? 'Enable node' : 'Disable node'}
-              >
-                <IconPower size={14} />
+                <IconMaximize size={14} />
+                <span className="sr-only">View fullscreen</span>
               </Button>
             )}
           </div>
-        )}
-      </CardHeader>
-
-      {/* Preview — always visible, 1:1 square */}
-      <div className={cn('px-3 pb-2 pt-0', disabled && 'opacity-50')}>
-        <div className="relative aspect-square w-full overflow-hidden border bg-muted">
-          {disabled ? (
-            <PreviewOverlay
-              icon={
-                <IconPower size={20} className="text-muted-foreground/50" />
-              }
-              label="Disabled"
-            />
-          ) : showRunning ? (
-            <PreviewOverlay icon={<Spinner />} label="Processing…" />
-          ) : showError ? (
-            <PreviewOverlay
-              label={nodeError ?? 'Unknown error'}
-              labelClassName="text-destructive/80"
-              title={nodeError ?? ''}
-            />
-          ) : showWaiting ? (
-            <PreviewOverlay label={waitingLabel} />
-          ) : resultPreview ? (
-            <img
-              src={resultPreview}
-              alt="Output preview"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <IconPhoto size={24} className="text-muted-foreground/40" />
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Settings */}
-      {children && (
-        <CardContent className="px-3 pb-3 pt-0">
-          <fieldset
-            disabled={disabled}
-            className={cn(
-              'border-0 p-0 m-0 min-w-0',
-              disabled && 'opacity-50 pointer-events-none',
-            )}
-          >
-            {children}
-          </fieldset>
-        </CardContent>
-      )}
+        {/* Settings */}
+        {children && (
+          <CardContent className="px-3 pb-3 pt-0">
+            <fieldset
+              disabled={disabled}
+              className={cn(
+                'border-0 p-0 m-0 min-w-0',
+                disabled && 'opacity-50 pointer-events-none',
+              )}
+            >
+              {children}
+            </fieldset>
+          </CardContent>
+        )}
 
-      {hasOutput && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="w-2.5! h-2.5! rounded-full! border-2! border-primary! bg-background!"
-        />
-      )}
-    </Card>
+        {hasOutput && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            className="w-2.5! h-2.5! rounded-full! border-2! border-primary! bg-background!"
+          />
+        )}
+      </Card>
+    </>
   )
 }
 
