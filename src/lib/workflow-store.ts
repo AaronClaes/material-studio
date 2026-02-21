@@ -34,6 +34,7 @@ interface WorkflowStore {
   deleteWorkflow: (id: string) => void
   setActiveWorkflowId: (id: string) => void
   renameWorkflow: (id: string, name: string) => void
+  importWorkflow: (def: { name: string; nodes: Array<StudioNode>; edges: Array<StudioEdge> }) => void
 
   // Graph mutations
   onNodesChange: (workflowId: string, changes: Array<NodeChange>) => void
@@ -109,6 +110,21 @@ export const useWorkflowStore = create<WorkflowStore>()(
       renameWorkflow: (id, name) => {
         set((s) => ({
           workflows: updateWorkflow(s.workflows, id, () => ({ name })),
+        }))
+      },
+
+      importWorkflow: (def) => {
+        const w: WorkflowDef = {
+          id: `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: def.name,
+          nodes: def.nodes,
+          edges: def.edges,
+          results: {},
+          isRunning: false,
+        }
+        set((s) => ({
+          workflows: [...s.workflows, w],
+          activeWorkflowId: w.id,
         }))
       },
 
@@ -411,6 +427,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
     },
   ),
 )
+
+export function exportWorkflow(wf: WorkflowDef): void {
+  const payload = {
+    name: wf.name,
+    nodes: wf.nodes.map((n) =>
+      n.data.kind === 'inputNode' ? { ...n, data: { ...n.data, src: '' } } : n,
+    ),
+    edges: wf.edges,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${wf.name.replace(/\s+/g, '-').toLowerCase()}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 // Stable fallback — prevents useSyncExternalStore from seeing a new object every render
 const EMPTY_RESULTS: ExecutionResults = {}
