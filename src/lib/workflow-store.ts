@@ -445,6 +445,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
               : n,
           ),
           edges: w.edges,
+          results: {},
+          isRunning: false,
         })),
       }),
     },
