@@ -38,15 +38,12 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   const handle = useDirectoryStore((s) => s.handles[id])
   const setHandle = useDirectoryStore((s) => s.setHandle)
 
-  console.log(handle)
-
   const upstreamId = (getEdges() as Array<StudioEdge>).find(
     (e) => e.target === id,
   )?.source
   const upstreamStatus = upstreamId ? results[upstreamId]?.status : undefined
   const hasValidInput =
-    !!upstreamId &&
-    (upstreamStatus === 'done' || upstreamStatus === 'skipped')
+    !!upstreamId && (upstreamStatus === 'done' || upstreamStatus === 'skipped')
 
   function toggleDisabled() {
     updateNodeData(id, { disabled: !data.disabled })

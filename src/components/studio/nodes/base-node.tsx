@@ -20,9 +20,7 @@ interface BaseNodeProps {
   nodeStatus?: NodeStatus
   resultPreview?: string | null
   nodeError?: string | null
-  /** Whether the workflow is currently running (used to show waiting state) */
   isRunning?: boolean
-  /** Message shown while this node is waiting for upstream nodes to finish */
   waitingLabel?: string
   onRun?: () => void
   onRunNodes?: () => void
@@ -52,7 +50,6 @@ export function BaseNode({
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
   const showError = nodeStatus === 'error'
-  const hasStatusContent = showWaiting || showRunning || showError
 
   return (
     <Card
@@ -108,57 +105,26 @@ export function BaseNode({
         )}
       </CardHeader>
 
-      {/* Status / preview — above settings */}
-      {!disabled && hasStatusContent && (
-        <div className="px-3 pb-2 pt-0">
-          {showRunning && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <svg
-                className="animate-spin h-3 w-3 shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                />
-              </svg>
-              Processing…
-            </div>
-          )}
-          {showError && (
-            <p
-              className="text-xs text-destructive truncate"
-              title={nodeError ?? ''}
-            >
-              {nodeError ?? 'Unknown error'}
-            </p>
-          )}
-          {showWaiting && (
-            <p className="text-xs text-muted-foreground">{waitingLabel}</p>
-          )}
-        </div>
-      )}
-
       {/* Preview — always visible, 1:1 square */}
       <div className={cn('px-3 pb-2 pt-0', disabled && 'opacity-50')}>
         <div className="relative aspect-square w-full overflow-hidden rounded-sm border bg-muted">
           {disabled ? (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-1.5">
-              <IconPower size={20} className="text-muted-foreground/50" />
-              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">
-                Disabled
-              </span>
-            </div>
+            <PreviewOverlay
+              icon={
+                <IconPower size={20} className="text-muted-foreground/50" />
+              }
+              label="Disabled"
+            />
+          ) : showRunning ? (
+            <PreviewOverlay icon={<Spinner />} label="Processing…" />
+          ) : showError ? (
+            <PreviewOverlay
+              label={nodeError ?? 'Unknown error'}
+              labelClassName="text-destructive/80"
+              title={nodeError ?? ''}
+            />
+          ) : showWaiting ? (
+            <PreviewOverlay label={waitingLabel} />
           ) : resultPreview ? (
             <img
               src={resultPreview}
@@ -196,5 +162,58 @@ export function BaseNode({
         />
       )}
     </Card>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg
+      className="animate-spin h-4 w-4 shrink-0 text-muted-foreground"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v8H4z"
+      />
+    </svg>
+  )
+}
+
+function PreviewOverlay({
+  icon,
+  label,
+  detail,
+  title,
+  labelClassName = 'text-muted-foreground/60',
+}: {
+  icon?: React.ReactNode
+  label: string
+  detail?: string
+  title?: string
+  labelClassName?: string
+}) {
+  return (
+    <div
+      className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-2"
+      title={title}
+    >
+      {icon}
+      <span className={cn('text-xs text-center', labelClassName)}>{label}</span>
+      {detail && (
+        <span className="text-xs text-destructive/70 text-center line-clamp-3 leading-tight">
+          {detail}
+        </span>
+      )}
+    </div>
   )
 }
