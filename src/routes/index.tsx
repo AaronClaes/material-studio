@@ -1,10 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ComponentExample } from "@/components/component-example";
+import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
 
-export const Route = createFileRoute("/")({ component: App });
+const StudioCanvas = lazy(() =>
+  import('@/components/studio/studio-canvas').then((m) => ({
+    default: m.StudioCanvas,
+  })),
+)
+
+export const Route = createFileRoute('/')({ component: App })
 
 function App() {
-return (
-  <ComponentExample />
-);
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground text-sm">Loading canvas…</div>}>
+      <StudioCanvas />
+    </Suspense>
+  )
 }
