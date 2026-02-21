@@ -80,6 +80,8 @@ function defaultData(kind: NodeKind): StudioNodeData {
         contrast: 0,
         saturation: 0,
         hue: 0,
+        tintColor: '#ffffff',
+        live: false,
       } satisfies ColorNodeData
     case 'outputNode':
       return {

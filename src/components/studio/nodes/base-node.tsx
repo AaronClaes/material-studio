@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import {
+  IconBolt,
   IconMaximize,
   IconPhoto,
   IconPlayerPlay,
@@ -30,6 +31,8 @@ interface BaseNodeProps {
   hasValidInput?: boolean
   disabled?: boolean
   onToggleDisabled?: () => void
+  liveMode?: boolean
+  onToggleLive?: () => void
 }
 
 export function BaseNode({
@@ -49,6 +52,8 @@ export function BaseNode({
   hasValidInput,
   disabled,
   onToggleDisabled,
+  liveMode,
+  onToggleLive,
 }: BaseNodeProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
@@ -80,11 +85,11 @@ export function BaseNode({
           <span className="text-muted-foreground">{icon}</span>
           <CardTitle className="text-sm font-medium">{label}</CardTitle>
           {/* Per-node run buttons */}
-          {(onRun || onRunNodes || onToggleDisabled) && (
+          {(onRun || onRunNodes || onToggleDisabled || onToggleLive) && (
             <div className="flex gap-1.5 ml-auto pl-4">
               {onRun && (
                 <Button
-                  size="xs"
+                  size="icon-xs"
                   variant="outline"
                   disabled={!hasValidInput || isRunning || disabled}
                   onClick={onRun}
@@ -94,12 +99,22 @@ export function BaseNode({
               )}
               {onRunNodes && (
                 <Button
-                  size="xs"
+                  size="icon-xs"
                   variant="outline"
                   disabled={!hasValidInput || isRunning || disabled}
                   onClick={onRunNodes}
                 >
                   <IconPlayerTrackNext size={14} />
+                </Button>
+              )}
+              {onToggleLive && (
+                <Button
+                  size="icon-xs"
+                  variant={liveMode ? 'default' : 'ghost'}
+                  onClick={onToggleLive}
+                  title={liveMode ? 'Live preview: on' : 'Live preview: off'}
+                >
+                  <IconBolt size={14} />
                 </Button>
               )}
               {onToggleDisabled && (

@@ -39,6 +39,8 @@ export interface ColorNodeData {
   contrast: number
   saturation: number
   hue: number
+  tintColor: string
+  live?: boolean
   disabled?: boolean
 }
 

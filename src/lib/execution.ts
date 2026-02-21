@@ -104,6 +104,7 @@ async function processNode(
       contrast: data.contrast,
       saturation: data.saturation,
       hue: data.hue,
+      tintColor: data.tintColor,
     })
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
   }
