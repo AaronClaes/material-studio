@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import { runFromNode, runSingleNode, runWorkflow, topoSort } from './execution'
+import {
+  getDownstreamIds,
+  runFromNode,
+  runSingleNode,
+  runWorkflow,
+} from './execution'
 import { dataUrlToImageData, processInputNode } from './processors'
 import type { ExecutionResults, StudioEdge, StudioNode } from '@/types/studio'
 
@@ -137,22 +142,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     const initialInput = await dataUrlToImageData(upstreamResult.outputDataUrl)
 
     // Reset affected nodes to idle
-    try {
-      const order = topoSort(nodes, edges)
-      const startIndex = order.indexOf(nodeId)
-      const affectedIds = new Set(
-        startIndex >= 0 ? order.slice(startIndex) : [],
-      )
-      set((s) => {
-        const results = { ...s.results }
-        for (const id of affectedIds) {
-          results[id] = { status: 'idle', outputDataUrl: null, error: null }
-        }
-        return { isRunning: true, results }
-      })
-    } catch {
-      set({ isRunning: true })
-    }
+    const affectedIds = getDownstreamIds(nodeId, edges)
+    set((s) => {
+      const results = { ...s.results }
+      for (const id of affectedIds) {
+        results[id] = { status: 'idle', outputDataUrl: null, error: null }
+      }
+      return { isRunning: true, results }
+    })
 
     await runFromNode(nodeId, initialInput, nodes, edges, {
       onNodeStart: (id) => {

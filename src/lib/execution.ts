@@ -6,7 +6,7 @@ import {
   processOutputNode,
   processResolutionNode,
 } from './processors'
-import type { StudioEdge, StudioNode } from '@/types/studio'
+import type { StudioEdge, StudioNode, StudioNodeData } from '@/types/studio'
 
 export function topoSort(
   nodes: Array<StudioNode>,
@@ -50,10 +50,104 @@ export function topoSort(
   return sorted
 }
 
-interface RunCallbacks {
+export interface RunCallbacks {
   onNodeStart: (id: string) => void
   onNodeDone: (id: string, dataUrl: string) => void
   onNodeError: (id: string, error: string) => void
+}
+
+/**
+ * Result of processing a single node.
+ * `dataUrl` is only set for outputNode; all others expose `imageData` for
+ * passing downstream. This keeps the processor boundary explicit and makes it
+ * straightforward to add new node kinds.
+ */
+type NodeProcessResult =
+  | { kind: 'image'; imageData: ImageData; dataUrl: string }
+  | { kind: 'output'; imageData: ImageData; dataUrl: string }
+
+async function processNode(
+  data: StudioNodeData,
+  input: ImageData | undefined,
+): Promise<NodeProcessResult> {
+  if (data.kind === 'inputNode') {
+    if (!data.src) throw new Error('No image selected')
+    const imageData = await processInputNode(data.src)
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (!input) throw new Error('No upstream input')
+
+  if (data.kind === 'crop') {
+    const imageData = await processCropNode(input, {
+      x: data.x,
+      y: data.y,
+      width: data.width,
+      height: data.height,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (data.kind === 'resolution') {
+    const imageData = await processResolutionNode(input, {
+      width: data.width,
+      height: data.height,
+      maintainAspect: data.maintainAspect,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (data.kind === 'color') {
+    const imageData = await processColorNode(input, {
+      brightness: data.brightness,
+      contrast: data.contrast,
+      saturation: data.saturation,
+      hue: data.hue,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  // outputNode
+  const result = await processOutputNode(input, { format: data.format })
+  return { kind: 'output', imageData: result.imageData, dataUrl: result.dataUrl }
+}
+
+/**
+ * Walks a slice of the topological order, processing each node and threading
+ * outputs downstream. `outputs` is mutated in place so callers can pre-seed
+ * upstream results before calling (used by `runFromNode`).
+ */
+async function executeOrder(
+  order: Array<string>,
+  nodeMap: Map<string, StudioNode>,
+  incomingEdge: Map<string, string>,
+  outputs: Map<string, ImageData>,
+  callbacks: RunCallbacks,
+): Promise<void> {
+  for (const id of order) {
+    const node = nodeMap.get(id)
+    if (!node) continue
+
+    callbacks.onNodeStart(id)
+
+    try {
+      const upstreamId = incomingEdge.get(id)
+      const input = upstreamId ? outputs.get(upstreamId) : undefined
+      const result = await processNode(node.data, input)
+      outputs.set(id, result.imageData)
+      callbacks.onNodeDone(id, result.dataUrl)
+    } catch (err) {
+      callbacks.onNodeError(id, err instanceof Error ? err.message : String(err))
+    }
+  }
+}
+
+function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const edge of edges) {
+    map.set(edge.target, edge.source)
+  }
+  return map
 }
 
 export async function runSingleNode(
@@ -68,43 +162,34 @@ export async function runSingleNode(
   callbacks.onNodeStart(nodeId)
 
   try {
-    const { data } = node
-    let outputData: ImageData
-
-    if (data.kind === 'inputNode') {
-      if (!data.src) throw new Error('No image selected')
-      outputData = await processInputNode(data.src)
-    } else if (data.kind === 'crop') {
-      outputData = await processCropNode(input, {
-        x: data.x,
-        y: data.y,
-        width: data.width,
-        height: data.height,
-      })
-    } else if (data.kind === 'resolution') {
-      outputData = await processResolutionNode(input, {
-        width: data.width,
-        height: data.height,
-        maintainAspect: data.maintainAspect,
-      })
-    } else if (data.kind === 'color') {
-      outputData = await processColorNode(input, {
-        brightness: data.brightness,
-        contrast: data.contrast,
-        saturation: data.saturation,
-        hue: data.hue,
-      })
-    } else {
-      // outputNode
-      const result = await processOutputNode(input, { format: data.format })
-      callbacks.onNodeDone(nodeId, result.dataUrl)
-      return
-    }
-
-    callbacks.onNodeDone(nodeId, imageDataToDataUrl(outputData))
+    const result = await processNode(node.data, input)
+    callbacks.onNodeDone(nodeId, result.dataUrl)
   } catch (err) {
     callbacks.onNodeError(nodeId, err instanceof Error ? err.message : String(err))
   }
+}
+
+export function getDownstreamIds(
+  startNodeId: string,
+  edges: Array<StudioEdge>,
+): Set<string> {
+  const adj = new Map<string, Array<string>>()
+  for (const edge of edges) {
+    if (!adj.has(edge.source)) adj.set(edge.source, [])
+    adj.get(edge.source)!.push(edge.target)
+  }
+
+  const visited = new Set<string>()
+  const queue = [startNodeId]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (visited.has(id)) continue
+    visited.add(id)
+    for (const neighbor of adj.get(id) ?? []) {
+      queue.push(neighbor)
+    }
+  }
+  return visited
 }
 
 export async function runFromNode(
@@ -114,14 +199,16 @@ export async function runFromNode(
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
 ): Promise<void> {
-  const order = topoSort(nodes, edges)
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const outputs = new Map<string, ImageData>()
+  const downstreamIds = getDownstreamIds(startNodeId, edges)
+  const downstreamNodes = nodes.filter((n) => downstreamIds.has(n.id))
+  const downstreamEdges = edges.filter(
+    (e) => downstreamIds.has(e.source) && downstreamIds.has(e.target),
+  )
 
-  const incomingEdge = new Map<string, string>()
-  for (const edge of edges) {
-    incomingEdge.set(edge.target, edge.source)
-  }
+  const order = topoSort(downstreamNodes, downstreamEdges)
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  const incomingEdge = buildIncomingEdgeMap(edges)
+  const outputs = new Map<string, ImageData>()
 
   // Pre-seed the upstream output so startNodeId can find its input
   const upstreamId = incomingEdge.get(startNodeId)
@@ -129,64 +216,7 @@ export async function runFromNode(
     outputs.set(upstreamId, initialInput)
   }
 
-  const startIndex = order.indexOf(startNodeId)
-  if (startIndex === -1) return
-  const slice = order.slice(startIndex)
-
-  for (const id of slice) {
-    const node = nodeMap.get(id)
-    if (!node) continue
-
-    callbacks.onNodeStart(id)
-
-    try {
-      const { data } = node
-      let outputData: ImageData
-
-      if (data.kind === 'inputNode') {
-        if (!data.src) throw new Error('No image selected')
-        outputData = await processInputNode(data.src)
-      } else {
-        const uid = incomingEdge.get(id)
-        const input = uid ? outputs.get(uid) : undefined
-        if (!input) throw new Error('No upstream input')
-
-        if (data.kind === 'crop') {
-          outputData = await processCropNode(input, {
-            x: data.x,
-            y: data.y,
-            width: data.width,
-            height: data.height,
-          })
-        } else if (data.kind === 'resolution') {
-          outputData = await processResolutionNode(input, {
-            width: data.width,
-            height: data.height,
-            maintainAspect: data.maintainAspect,
-          })
-        } else if (data.kind === 'color') {
-          outputData = await processColorNode(input, {
-            brightness: data.brightness,
-            contrast: data.contrast,
-            saturation: data.saturation,
-            hue: data.hue,
-          })
-        } else {
-          // outputNode
-          const result = await processOutputNode(input, { format: data.format })
-          outputData = result.imageData
-          outputs.set(id, outputData)
-          callbacks.onNodeDone(id, result.dataUrl)
-          continue
-        }
-      }
-
-      outputs.set(id, outputData)
-      callbacks.onNodeDone(id, imageDataToDataUrl(outputData))
-    } catch (err) {
-      callbacks.onNodeError(id, err instanceof Error ? err.message : String(err))
-    }
-  }
+  await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
 }
 
 export async function runWorkflow(
@@ -196,66 +226,8 @@ export async function runWorkflow(
 ): Promise<void> {
   const order = topoSort(nodes, edges)
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  const incomingEdge = buildIncomingEdgeMap(edges)
   const outputs = new Map<string, ImageData>()
 
-  // Build reverse edge map: target → source (for finding upstream node)
-  const incomingEdge = new Map<string, string>()
-  for (const edge of edges) {
-    incomingEdge.set(edge.target, edge.source)
-  }
-
-  for (const id of order) {
-    const node = nodeMap.get(id)
-    if (!node) continue
-
-    callbacks.onNodeStart(id)
-
-    try {
-      const { data } = node
-      let outputData: ImageData
-
-      if (data.kind === 'inputNode') {
-        if (!data.src) throw new Error('No image selected')
-        outputData = await processInputNode(data.src)
-      } else {
-        const upstreamId = incomingEdge.get(id)
-        const input = upstreamId ? outputs.get(upstreamId) : undefined
-        if (!input) throw new Error('No upstream input')
-
-        if (data.kind === 'crop') {
-          outputData = await processCropNode(input, {
-            x: data.x,
-            y: data.y,
-            width: data.width,
-            height: data.height,
-          })
-        } else if (data.kind === 'resolution') {
-          outputData = await processResolutionNode(input, {
-            width: data.width,
-            height: data.height,
-            maintainAspect: data.maintainAspect,
-          })
-        } else if (data.kind === 'color') {
-          outputData = await processColorNode(input, {
-            brightness: data.brightness,
-            contrast: data.contrast,
-            saturation: data.saturation,
-            hue: data.hue,
-          })
-        } else {
-          // outputNode
-          const result = await processOutputNode(input, { format: data.format })
-          outputData = result.imageData
-          outputs.set(id, outputData)
-          callbacks.onNodeDone(id, result.dataUrl)
-          continue
-        }
-      }
-
-      outputs.set(id, outputData)
-      callbacks.onNodeDone(id, imageDataToDataUrl(outputData))
-    } catch (err) {
-      callbacks.onNodeError(id, err instanceof Error ? err.message : String(err))
-    }
-  }
+  await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
 }
