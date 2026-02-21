@@ -68,7 +68,7 @@ export function NodeInspectorPanel({ node, result }: NodeInspectorPanelProps) {
 
       <div className="flex flex-col gap-4 p-4">
         {/* Preview — full, no aspect ratio constraint */}
-        <div className="w-full overflow-hidden rounded-sm border bg-muted">
+        <div className="w-full overflow-hidden border bg-muted">
           {dataUrl ? (
             <img
               src={dataUrl}

@@ -17,27 +17,27 @@ export const NODE_META: Record<
   inputNode: {
     label: 'Input',
     icon: 'photo',
-    description: 'Load a texture image',
+    description: 'Load an image file',
   },
   crop: {
     label: 'Crop',
     icon: 'crop',
-    description: 'Crop to a region',
+    description: 'Trim to a region',
   },
   resolution: {
     label: 'Resolution',
     icon: 'maximize',
-    description: 'Resize the texture',
+    description: 'Scale & resize',
   },
   color: {
     label: 'Color',
     icon: 'palette',
-    description: 'Adjust brightness, contrast, saturation, hue',
+    description: 'Brightness, contrast & hue',
   },
   outputNode: {
     label: 'Output',
     icon: 'download',
-    description: 'Export the texture',
+    description: 'Export & save to disk',
   },
 }
 

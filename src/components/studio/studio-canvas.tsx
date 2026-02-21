@@ -11,6 +11,7 @@ import '@xyflow/react/dist/style.css'
 
 import { useCallback } from 'react'
 import { StudioToolbar } from './studio-toolbar'
+import { FloatingAddNode } from './floating-add-node'
 import { NodeInspectorPanel } from './node-inspector-panel'
 import { WorkflowPanel } from './workflow-panel'
 import { InputNode } from './nodes/input-node'
@@ -68,13 +69,13 @@ export function StudioCanvas() {
     <div className="flex flex-col h-screen w-full">
       <StudioToolbar
         workflowName={activeWorkflow?.name ?? ''}
-        onAddNode={(node) => addNode(activeWorkflowId, node)}
         onRunWorkflow={() => run(activeWorkflowId)}
         isRunning={isRunning}
       />
       <div className="flex flex-1 overflow-hidden">
         <WorkflowPanel />
         <div className="flex-1 relative">
+          <FloatingAddNode onAddNode={(node) => addNode(activeWorkflowId, node)} />
           <ReactFlow
             key={activeWorkflowId}
             nodes={nodes}

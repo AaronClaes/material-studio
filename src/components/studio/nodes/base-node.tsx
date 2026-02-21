@@ -107,7 +107,7 @@ export function BaseNode({
 
       {/* Preview — always visible, 1:1 square */}
       <div className={cn('px-3 pb-2 pt-0', disabled && 'opacity-50')}>
-        <div className="relative aspect-square w-full overflow-hidden rounded-sm border bg-muted">
+        <div className="relative aspect-square w-full overflow-hidden border bg-muted">
           {disabled ? (
             <PreviewOverlay
               icon={
