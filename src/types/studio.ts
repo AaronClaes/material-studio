@@ -43,6 +43,7 @@ export interface OutputNodeData {
   kind: 'outputNode'
   label: string
   format: 'png' | 'jpg' | 'webp'
+  filename: string
 }
 
 export type StudioNodeData = (

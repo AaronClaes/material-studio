@@ -11,7 +11,6 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
 
   const { setNodes, getEdges, getNodes } = useReactFlow()
   const run = useExecutionStore((s) => s.run)
-  const runNode = useExecutionStore((s) => s.runNode)
   const isRunning = useExecutionStore((s) => s.isRunning)
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -40,13 +39,6 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       nodeError={null}
       isRunning={isRunning}
       hasValidInput={!!data.src}
-      onRun={() =>
-        runNode(
-          id,
-          getNodes() as Array<StudioNode>,
-          getEdges() as Array<StudioEdge>,
-        )
-      }
       onRunNodes={() =>
         run(getNodes() as Array<StudioNode>, getEdges() as Array<StudioEdge>)
       }

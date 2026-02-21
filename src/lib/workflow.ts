@@ -86,6 +86,7 @@ function defaultData(kind: NodeKind): StudioNodeData {
         kind: 'outputNode',
         label: 'Output',
         format: 'png',
+        filename: 'output',
       } satisfies OutputNodeData
   }
 }
@@ -117,7 +118,7 @@ export function createInitialGraph(): {
     id: 'node-2',
     type: 'outputNode',
     position: { x: 420, y: 160 },
-    data: { kind: 'outputNode', label: 'Output', format: 'png' },
+    data: { kind: 'outputNode', label: 'Output', format: 'png', filename: 'output' },
   }
 
   const edge: Edge = {
