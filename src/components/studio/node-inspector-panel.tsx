@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { IconDownload, IconPhoto } from '@tabler/icons-react'
+import { IconDownload, IconMaximize, IconPhoto } from '@tabler/icons-react'
+import { PreviewModal } from './preview-modal'
 import type { NodeResult, StudioNode } from '@/types/studio'
 import { Button } from '@/components/ui/button'
 import { NODE_META } from '@/lib/workflow'
@@ -34,6 +35,7 @@ export function NodeInspectorPanel({ node, result }: NodeInspectorPanelProps) {
   const [dimensions, setDimensions] = useState<{ w: number; h: number } | null>(
     null,
   )
+  const [previewOpen, setPreviewOpen] = useState(false)
   const dataUrl = result?.outputDataUrl ?? null
 
   useEffect(() => {
@@ -61,57 +63,76 @@ export function NodeInspectorPanel({ node, result }: NodeInspectorPanelProps) {
   }
 
   return (
-    <div className="w-72 shrink-0 border-l bg-card flex flex-col overflow-y-auto">
-      <div className="flex items-center border-b px-4 py-2">
-        <span className="text-sm font-semibold">Inspector</span>
-      </div>
+    <>
+      <PreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title={node.data.label}
+        dataUrl={dataUrl}
+      />
 
-      <div className="flex flex-col gap-4 p-4">
-        {/* Preview — full, no aspect ratio constraint */}
-        <div className="w-full overflow-hidden border bg-muted">
-          {dataUrl ? (
-            <img
-              src={dataUrl}
-              alt="Full preview"
-              className="max-h-64 w-full object-contain"
-            />
-          ) : (
-            <div className="flex h-32 items-center justify-center">
-              <IconPhoto size={32} className="text-muted-foreground/40" />
-            </div>
-          )}
+      <div className="w-72 shrink-0 border-l bg-card flex flex-col overflow-y-auto">
+        <div className="flex items-center border-b px-4 py-2">
+          <span className="text-sm font-semibold">Inspector</span>
         </div>
 
-        {/* Download */}
-        {dataUrl && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full gap-1.5"
-            onClick={handleDownload}
-          >
-            <IconDownload size={14} />
-            Download
-          </Button>
-        )}
+        <div className="flex flex-col gap-4 p-4">
+          {/* Preview — full, no aspect ratio constraint */}
+          <div className="group relative w-full overflow-hidden border bg-muted">
+            {dataUrl ? (
+              <img
+                src={dataUrl}
+                alt="Full preview"
+                className="max-h-64 w-full object-contain"
+              />
+            ) : (
+              <div className="flex h-32 items-center justify-center">
+                <IconPhoto size={32} className="text-muted-foreground/40" />
+              </div>
+            )}
+            {/* Fullscreen button */}
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/70 hover:bg-background/90"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <IconMaximize size={14} />
+              <span className="sr-only">View fullscreen</span>
+            </Button>
+          </div>
 
-        <hr className="border-border" />
+          {/* Download */}
+          {dataUrl && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={handleDownload}
+            >
+              <IconDownload size={14} />
+              Download
+            </Button>
+          )}
 
-        {/* Metadata */}
-        <div className="flex flex-col gap-3">
-          <MetaRow label="Type" value={meta.label} />
-          {dimensions && (
-            <MetaRow
-              label="Resolution"
-              value={`${dimensions.w} × ${dimensions.h} px`}
-            />
-          )}
-          {fileSize !== null && (
-            <MetaRow label="File size" value={formatBytes(fileSize)} />
-          )}
-          {result?.status && <MetaRow label="Status" value={result.status} />}
+          <hr className="border-border" />
+
+          {/* Metadata */}
+          <div className="flex flex-col gap-3">
+            <MetaRow label="Type" value={meta.label} />
+            {dimensions && (
+              <MetaRow
+                label="Resolution"
+                value={`${dimensions.w} × ${dimensions.h} px`}
+              />
+            )}
+            {fileSize !== null && (
+              <MetaRow label="File size" value={formatBytes(fileSize)} />
+            )}
+            {result?.status && <MetaRow label="Status" value={result.status} />}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
