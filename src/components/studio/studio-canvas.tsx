@@ -19,15 +19,24 @@ import { OutputNode } from './nodes/output-node'
 import { CropNode } from './nodes/crop-node'
 import { ResolutionNode } from './nodes/resolution-node'
 import { ColorNode } from './nodes/color-node'
-import type { Connection, EdgeChange, NodeChange, NodeTypes } from '@xyflow/react'
-import { useActiveWorkflowResults, useWorkflowStore } from '@/lib/workflow-store'
+import type {
+  Connection,
+  EdgeChange,
+  NodeChange,
+  NodeTypes,
+} from '@xyflow/react'
+import {
+  exportWorkflow,
+  useActiveWorkflowResults,
+  useWorkflowStore,
+} from '@/lib/workflow-store'
 
 const nodeTypes: NodeTypes = {
-  inputNode: InputNode as React.ComponentType<any>,
-  outputNode: OutputNode as React.ComponentType<any>,
-  crop: CropNode as React.ComponentType<any>,
-  resolution: ResolutionNode as React.ComponentType<any>,
-  color: ColorNode as React.ComponentType<any>,
+  inputNode: InputNode,
+  outputNode: OutputNode,
+  crop: CropNode,
+  resolution: ResolutionNode,
+  color: ColorNode,
 }
 
 export function StudioCanvas() {
@@ -40,6 +49,8 @@ export function StudioCanvas() {
   const onConnect = useWorkflowStore((s) => s.onConnect)
   const addNode = useWorkflowStore((s) => s.addNode)
   const run = useWorkflowStore((s) => s.run)
+  const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
+  const workflows = useWorkflowStore((s) => s.workflows)
 
   const results = useActiveWorkflowResults()
 
@@ -49,6 +60,8 @@ export function StudioCanvas() {
 
   const selectedNode = nodes.find((n) => n.selected) ?? null
   const selectedResult = selectedNode ? results[selectedNode.id] : undefined
+
+  const canRun = nodes.some((n) => n.type === 'inputNode' && n.data.src)
 
   const handleNodesChange = useCallback(
     (changes: Array<NodeChange>) => onNodesChange(activeWorkflowId, changes),
@@ -71,11 +84,19 @@ export function StudioCanvas() {
         workflowName={activeWorkflow?.name ?? ''}
         onRunWorkflow={() => run(activeWorkflowId)}
         isRunning={isRunning}
+        canRun={canRun}
+        onExportWorkflow={() =>
+          activeWorkflow && exportWorkflow(activeWorkflow)
+        }
+        onDeleteWorkflow={() => deleteWorkflow(activeWorkflowId)}
+        canDeleteWorkflow={workflows.length > 1}
       />
       <div className="flex flex-1 overflow-hidden">
         <WorkflowPanel />
         <div className="flex-1 relative">
-          <FloatingAddNode onAddNode={(node) => addNode(activeWorkflowId, node)} />
+          <FloatingAddNode
+            onAddNode={(node) => addNode(activeWorkflowId, node)}
+          />
           <ReactFlow
             key={activeWorkflowId}
             nodes={nodes}

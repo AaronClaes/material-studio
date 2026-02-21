@@ -1,10 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import {
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-} from '@xyflow/react'
+import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import {
   getDownstreamIds,
   runFromNode,
@@ -34,7 +30,11 @@ interface WorkflowStore {
   deleteWorkflow: (id: string) => void
   setActiveWorkflowId: (id: string) => void
   renameWorkflow: (id: string, name: string) => void
-  importWorkflow: (def: { name: string; nodes: Array<StudioNode>; edges: Array<StudioEdge> }) => void
+  importWorkflow: (def: {
+    name: string
+    nodes: Array<StudioNode>
+    edges: Array<StudioEdge>
+  }) => void
 
   // Graph mutations
   onNodesChange: (workflowId: string, changes: Array<NodeChange>) => void
@@ -155,10 +155,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       onConnect: (workflowId, connection) => {
         set((s) => ({
           workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
-            edges: addEdge(
-              { ...connection, type: 'smoothstep' },
-              w.edges,
-            ),
+            edges: addEdge({ ...connection, type: 'smoothstep' }, w.edges),
           })),
         }))
       },
@@ -335,7 +332,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
         const upstreamResult = wf.results[upstreamId]
         if (!upstreamResult?.outputDataUrl) return
 
-        const initialInput = await dataUrlToImageData(upstreamResult.outputDataUrl)
+        const initialInput = await dataUrlToImageData(
+          upstreamResult.outputDataUrl,
+        )
 
         const affectedIds = getDownstreamIds(nodeId, edges)
         set((s) => ({
@@ -419,7 +418,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
           id: w.id,
           name: w.name,
           nodes: w.nodes.map((n) =>
-            n.data.kind === 'inputNode' ? { ...n, data: { ...n.data, src: '' } } : n,
+            n.data.kind === 'inputNode'
+              ? { ...n, data: { ...n.data, src: '' } }
+              : n,
           ),
           edges: w.edges,
         })),
@@ -436,7 +437,9 @@ export function exportWorkflow(wf: WorkflowDef): void {
     ),
     edges: wf.edges,
   }
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -450,9 +453,7 @@ const EMPTY_RESULTS: ExecutionResults = {}
 
 // Convenience selectors
 export const useActiveWorkflow = () =>
-  useWorkflowStore((s) =>
-    s.workflows.find((w) => w.id === s.activeWorkflowId),
-  )
+  useWorkflowStore((s) => s.workflows.find((w) => w.id === s.activeWorkflowId))
 
 export const useActiveWorkflowResults = () =>
   useWorkflowStore(

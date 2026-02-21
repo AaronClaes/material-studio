@@ -1,7 +1,12 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { IconFileExport, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react'
+import {
+  IconFileExport,
+  IconPlus,
+  IconTrash,
+  IconUpload,
+} from '@tabler/icons-react'
 import type { WorkflowDef } from '@/lib/workflow-store'
 import { exportWorkflow, useWorkflowStore } from '@/lib/workflow-store'
 import { cn } from '@/lib/utils'
@@ -58,12 +63,6 @@ export function WorkflowPanel() {
 
   return (
     <div className="w-52 shrink-0 border-r bg-card flex flex-col h-full">
-      <div className="px-3 py-2.5 border-b">
-        <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
-          Workflows
-        </span>
-      </div>
-
       <div className="flex-1 overflow-y-auto">
         {workflows.map((wf) => {
           const isActive = wf.id === activeWorkflowId
@@ -73,7 +72,7 @@ export function WorkflowPanel() {
             <div
               key={wf.id}
               className={cn(
-                'group flex items-center border-l-2  gap-1 px-2 py-1.5  pl-[6px] cursor-pointer relative',
+                'group flex items-center border-l-3  gap-1 px-3 py-2  cursor-pointer relative',
                 isActive
                   ? 'border-primary bg-accent/60'
                   : 'border-transparent hover:bg-accent/30',

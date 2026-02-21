@@ -3,7 +3,7 @@ import { useReactFlow } from '@xyflow/react'
 import { IconDownload, IconFolder, IconFolderOpen } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { StudioEdge, StudioNode } from '@/types/studio'
+import type { StudioNode } from '@/types/studio'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -43,9 +43,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
 
   const result = results[id]
 
-  const upstreamId = (getEdges() as Array<StudioEdge>).find(
-    (e) => e.target === id,
-  )?.source
+  const upstreamId = getEdges().find((e) => e.target === id)?.source
   const upstreamStatus = upstreamId ? results[upstreamId]?.status : undefined
   const hasValidInput =
     !!upstreamId && (upstreamStatus === 'done' || upstreamStatus === 'skipped')

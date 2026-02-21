@@ -1,37 +1,87 @@
-import { IconPlayerPlay } from '@tabler/icons-react'
+import {
+  IconDotsVertical,
+  IconFileExport,
+  IconPlayerPlay,
+  IconTrash,
+} from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface StudioToolbarProps {
   workflowName: string
   onRunWorkflow: () => void
   isRunning: boolean
+  canRun: boolean
+  onExportWorkflow: () => void
+  onDeleteWorkflow: () => void
+  canDeleteWorkflow: boolean
 }
 
 export function StudioToolbar({
   workflowName,
   onRunWorkflow,
   isRunning,
+  canRun,
+  onExportWorkflow,
+  onDeleteWorkflow,
+  canDeleteWorkflow,
 }: StudioToolbarProps) {
   return (
-    <div className="flex items-center justify-between border-b px-4 py-2 bg-card">
-      <span className="text-sm font-semibold tracking-tight">
-        Material Studio
+    <div className="flex items-center justify-between border-b bg-card">
+      <div className="w-52 border-r border-border pl-4 py-2 h-full flex items-center">
+        <h1 className="text-sm font-semibold tracking-tight">
+          Material Studio
+        </h1>
+      </div>
+      <div>
         {workflowName && (
-          <>
-            <span className="mx-2 text-muted-foreground font-normal">·</span>
-            <span className="font-normal text-muted-foreground">{workflowName}</span>
-          </>
+          <span className="font-normal text-muted-foreground">
+            {workflowName}
+          </span>
         )}
-      </span>
-      <Button
-        size="sm"
-        onClick={onRunWorkflow}
-        disabled={isRunning}
-        className="gap-1.5"
-      >
-        <IconPlayerPlay size={14} />
-        {isRunning ? 'Running…' : 'Run Workflow'}
-      </Button>
+      </div>
+      <div className="h-full flex items-center gap-1 pr-2 py-2">
+        <Button
+          size="sm"
+          onClick={onRunWorkflow}
+          disabled={isRunning || !canRun}
+          className="gap-1.5"
+        >
+          <IconPlayerPlay size={14} />
+          {isRunning ? 'Running…' : 'Run Workflow'}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="px-2">
+              <IconDotsVertical size={14} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem
+              onClick={onExportWorkflow}
+              className="text-nowrap"
+            >
+              <IconFileExport size={14} />
+              Export workflow
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onDeleteWorkflow}
+              disabled={!canDeleteWorkflow}
+              variant="destructive"
+            >
+              <IconTrash size={14} />
+              Remove workflow
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }
