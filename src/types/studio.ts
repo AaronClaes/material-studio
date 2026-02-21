@@ -62,4 +62,4 @@ export interface NodeResult {
   outputDataUrl: string | null
   error: string | null
 }
-export type ExecutionResults = Record<string, NodeResult>
+export type ExecutionResults = Record<string, NodeResult | undefined>

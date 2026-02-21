@@ -1,6 +1,8 @@
 import { Handle, Position } from '@xyflow/react'
+import { IconPlayerPlay, IconPlayerTrackNext } from '@tabler/icons-react'
 import type { NodeStatus } from '@/types/studio'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface BaseNodeProps {
@@ -17,6 +19,9 @@ interface BaseNodeProps {
   isRunning?: boolean
   /** Message shown while this node is waiting for upstream nodes to finish */
   waitingLabel?: string
+  onRun?: () => void
+  onRunNodes?: () => void
+  hasValidInput?: boolean
 }
 
 export function BaseNode({
@@ -31,6 +36,9 @@ export function BaseNode({
   nodeError,
   isRunning,
   waitingLabel = 'Waiting for input…',
+  onRun,
+  onRunNodes,
+  hasValidInput,
 }: BaseNodeProps) {
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
@@ -41,7 +49,7 @@ export function BaseNode({
   return (
     <Card
       className={cn(
-        'w-[220px] rounded-none shadow-md py-0 gap-1',
+        'w-[240px] rounded-none shadow-md py-0 gap-1',
         selected && 'ring-2 ring-primary',
       )}
     >
@@ -52,9 +60,34 @@ export function BaseNode({
           className="w-2.5! h-2.5! rounded-full border-2 border-primary bg-background!"
         />
       )}
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 px-3 py-2">
+      <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-2">
         <span className="text-muted-foreground">{icon}</span>
         <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        {/* Per-node run buttons */}
+        {(onRun || onRunNodes) && (
+          <div className="flex gap-1.5 ml-auto pl-4">
+            {onRun && (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={!hasValidInput || isRunning}
+                onClick={onRun}
+              >
+                <IconPlayerPlay size={14} />
+              </Button>
+            )}
+            {onRunNodes && (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={!hasValidInput || isRunning}
+                onClick={onRunNodes}
+              >
+                <IconPlayerTrackNext size={14} />
+              </Button>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       {/* Status / preview — above settings */}

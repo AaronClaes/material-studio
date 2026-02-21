@@ -2,7 +2,7 @@ import { useReactFlow } from '@xyflow/react'
 import { IconDownload } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { NodeResult, StudioNode } from '@/types/studio'
+import type { StudioNode } from '@/types/studio'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -17,7 +17,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
   const { setNodes } = useReactFlow()
-  const result = useExecutionStore((s) => s.results[id] as NodeResult | undefined)
+  const result = useExecutionStore((s) => s.results[id])
   const isRunning = useExecutionStore((s) => s.isRunning)
 
   function setFormat(format: 'png' | 'jpg' | 'webp') {

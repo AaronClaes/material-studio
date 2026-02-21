@@ -1,8 +1,8 @@
-import { useReactFlow } from '@xyflow/react'
+import { useEdges, useReactFlow } from '@xyflow/react'
 import { IconPalette } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { NodeResult, StudioNode } from '@/types/studio'
+import type { StudioEdge, StudioNode } from '@/types/studio'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { useExecutionStore } from '@/lib/execution-store'
@@ -37,9 +37,16 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'color') return null
 
-  const { setNodes } = useReactFlow()
-  const result = useExecutionStore((s) => s.results[id] as NodeResult | undefined)
+  const { setNodes, getNodes, getEdges } = useReactFlow()
+  const edges = useEdges()
+  const result = useExecutionStore((s) => s.results[id])
   const isRunning = useExecutionStore((s) => s.isRunning)
+  const runNode = useExecutionStore((s) => s.runNode)
+  const runNodesFrom = useExecutionStore((s) => s.runNodesFrom)
+
+  const upstreamId = edges.find((e) => e.target === id)?.source
+  const upstreamResult = useExecutionStore((s) => s.results[upstreamId ?? ''])
+  const hasValidInput = upstreamResult?.status === 'done'
 
   function update(patch: Partial<typeof data>) {
     setNodes((nodes) =>
@@ -58,6 +65,21 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
       resultPreview={result?.outputDataUrl}
       nodeError={result?.error}
       isRunning={isRunning}
+      hasValidInput={hasValidInput}
+      onRun={() =>
+        runNode(
+          id,
+          getNodes() as Array<StudioNode>,
+          getEdges() as Array<StudioEdge>,
+        )
+      }
+      onRunNodes={() =>
+        runNodesFrom(
+          id,
+          getNodes() as Array<StudioNode>,
+          getEdges() as Array<StudioEdge>,
+        )
+      }
     >
       <div className="space-y-2.5">
         <SliderRow

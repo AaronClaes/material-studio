@@ -16,6 +16,22 @@ export function processInputNode(src: string): Promise<ImageData> {
   })
 }
 
+export function dataUrlToImageData(dataUrl: string): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      resolve(ctx.getImageData(0, 0, canvas.width, canvas.height))
+    }
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = dataUrl
+  })
+}
+
 export function processCropNode(
   input: ImageData,
   params: { x: number; y: number; width: number; height: number },
