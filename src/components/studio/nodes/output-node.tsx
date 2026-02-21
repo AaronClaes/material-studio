@@ -14,7 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useExecutionStore } from '@/lib/execution-store'
+import {
+  useActiveWorkflowActions,
+  useActiveWorkflowIsRunning,
+  useActiveWorkflowResults,
+} from '@/lib/workflow-store'
 import { useDirectoryStore } from '@/lib/directory-store'
 
 declare global {
@@ -30,13 +34,14 @@ const supportsDirectoryPicker = 'showDirectoryPicker' in window
 export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
-  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
-  const result = useExecutionStore((s) => s.results[id])
-  const results = useExecutionStore((s) => s.results)
-  const isRunning = useExecutionStore((s) => s.isRunning)
-  const runNode = useExecutionStore((s) => s.runNode)
+  const { setNodes, getEdges, updateNodeData } = useReactFlow()
+  const results = useActiveWorkflowResults()
+  const isRunning = useActiveWorkflowIsRunning()
+  const { runNode } = useActiveWorkflowActions()
   const handle = useDirectoryStore((s) => s.handles[id])
   const setHandle = useDirectoryStore((s) => s.setHandle)
+
+  const result = results[id]
 
   const upstreamId = (getEdges() as Array<StudioEdge>).find(
     (e) => e.target === id,
@@ -118,13 +123,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
       hasValidInput={hasValidInput}
       disabled={data.disabled}
       onToggleDisabled={toggleDisabled}
-      onRun={() =>
-        runNode(
-          id,
-          getNodes() as Array<StudioNode>,
-          getEdges() as Array<StudioEdge>,
-        )
-      }
+      onRun={() => runNode(id)}
     >
       <div className="flex flex-col gap-2">
         <div className="space-y-1.5">

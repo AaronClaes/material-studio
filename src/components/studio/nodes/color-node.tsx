@@ -2,10 +2,14 @@ import { useEdges, useReactFlow } from '@xyflow/react'
 import { IconPalette } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { StudioEdge, StudioNode } from '@/types/studio'
+import type { StudioNode } from '@/types/studio'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { useExecutionStore } from '@/lib/execution-store'
+import {
+  useActiveWorkflowActions,
+  useActiveWorkflowIsRunning,
+  useActiveWorkflowResults,
+} from '@/lib/workflow-store'
 
 interface SliderRowProps {
   label: string
@@ -37,15 +41,15 @@ function SliderRow({ label, value, min, max, onChange }: SliderRowProps) {
 export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'color') return null
 
-  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
+  const { setNodes, updateNodeData } = useReactFlow()
   const edges = useEdges()
-  const result = useExecutionStore((s) => s.results[id])
-  const isRunning = useExecutionStore((s) => s.isRunning)
-  const runNode = useExecutionStore((s) => s.runNode)
-  const runNodesFrom = useExecutionStore((s) => s.runNodesFrom)
+  const results = useActiveWorkflowResults()
+  const isRunning = useActiveWorkflowIsRunning()
+  const { runNode, runNodesFrom } = useActiveWorkflowActions()
 
+  const result = results[id]
   const upstreamId = edges.find((e) => e.target === id)?.source
-  const upstreamResult = useExecutionStore((s) => s.results[upstreamId ?? ''])
+  const upstreamResult = upstreamId ? results[upstreamId] : undefined
   const hasValidInput =
     upstreamResult?.status === 'done' || upstreamResult?.status === 'skipped'
 
@@ -73,20 +77,8 @@ export function ColorNode({ id, data, selected }: NodeProps<StudioNode>) {
       hasValidInput={hasValidInput}
       disabled={data.disabled}
       onToggleDisabled={toggleDisabled}
-      onRun={() =>
-        runNode(
-          id,
-          getNodes() as Array<StudioNode>,
-          getEdges() as Array<StudioEdge>,
-        )
-      }
-      onRunNodes={() =>
-        runNodesFrom(
-          id,
-          getNodes() as Array<StudioNode>,
-          getEdges() as Array<StudioEdge>,
-        )
-      }
+      onRun={() => runNode(id)}
+      onRunNodes={() => runNodesFrom(id)}
     >
       <div className="space-y-2.5">
         <SliderRow

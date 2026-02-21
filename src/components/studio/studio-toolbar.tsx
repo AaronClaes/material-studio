@@ -18,12 +18,14 @@ const NODE_KINDS: Array<NodeKind> = [
 ]
 
 interface StudioToolbarProps {
+  workflowName: string
   onAddNode: (node: StudioNode) => void
   onRunWorkflow: () => void
   isRunning: boolean
 }
 
 export function StudioToolbar({
+  workflowName,
   onAddNode,
   onRunWorkflow,
   isRunning,
@@ -37,6 +39,12 @@ export function StudioToolbar({
     <div className="flex items-center justify-between border-b px-4 py-2 bg-card">
       <span className="text-sm font-semibold tracking-tight">
         Material Studio
+        {workflowName && (
+          <>
+            <span className="mx-2 text-muted-foreground font-normal">·</span>
+            <span className="font-normal text-muted-foreground">{workflowName}</span>
+          </>
+        )}
       </span>
       <div className="flex items-center gap-2">
         <Button
