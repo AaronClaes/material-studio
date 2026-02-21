@@ -14,6 +14,7 @@ import '@xyflow/react/dist/style.css'
 
 import { useCallback } from 'react'
 import { StudioToolbar } from './studio-toolbar'
+import { NodeInspectorPanel } from './node-inspector-panel'
 import { InputNode } from './nodes/input-node'
 import { OutputNode } from './nodes/output-node'
 import { CropNode } from './nodes/crop-node'
@@ -41,6 +42,10 @@ export function StudioCanvas() {
     useEdgesState<StudioEdge>(initialEdges)
 
   const { run, isRunning } = useExecutionStore()
+  const results = useExecutionStore((s) => s.results)
+
+  const selectedNode = nodes.find((n) => n.selected) ?? null
+  const selectedResult = selectedNode ? results[selectedNode.id] : undefined
 
   const onConnect = useCallback(
     (connection: Connection) =>
@@ -55,22 +60,27 @@ export function StudioCanvas() {
         onRunWorkflow={() => run(nodes, edges)}
         isRunning={isRunning}
       />
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          defaultEdgeOptions={{ type: 'smoothstep' }}
-          fitView
-          fitViewOptions={{ padding: 0.4 }}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
-          <Controls />
-          <MiniMap />
-        </ReactFlow>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 relative">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            defaultEdgeOptions={{ type: 'smoothstep' }}
+            fitView
+            fitViewOptions={{ padding: 0.4 }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
+            <Controls />
+            <MiniMap />
+          </ReactFlow>
+        </div>
+        {selectedNode && (
+          <NodeInspectorPanel node={selectedNode} result={selectedResult} />
+        )}
       </div>
     </div>
   )

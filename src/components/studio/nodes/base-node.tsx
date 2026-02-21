@@ -1,5 +1,9 @@
 import { Handle, Position } from '@xyflow/react'
-import { IconPlayerPlay, IconPlayerTrackNext } from '@tabler/icons-react'
+import {
+  IconPhoto,
+  IconPlayerPlay,
+  IconPlayerTrackNext,
+} from '@tabler/icons-react'
 import type { NodeStatus } from '@/types/studio'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,9 +46,8 @@ export function BaseNode({
 }: BaseNodeProps) {
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
-  const showResult = nodeStatus === 'done' && !!resultPreview
   const showError = nodeStatus === 'error'
-  const hasStatusContent = showWaiting || showRunning || showResult || showError
+  const hasStatusContent = showWaiting || showRunning || showError
 
   return (
     <Card
@@ -117,13 +120,6 @@ export function BaseNode({
               Processing…
             </div>
           )}
-          {showResult && (
-            <img
-              src={resultPreview}
-              alt="Output preview"
-              className="w-full h-auto rounded-sm border"
-            />
-          )}
           {showError && (
             <p
               className="text-xs text-destructive truncate"
@@ -137,6 +133,23 @@ export function BaseNode({
           )}
         </div>
       )}
+
+      {/* Preview — always visible, 1:1 square */}
+      <div className="px-3 pb-2 pt-0">
+        <div className="relative aspect-square w-full overflow-hidden rounded-sm border bg-muted">
+          {resultPreview ? (
+            <img
+              src={resultPreview}
+              alt="Output preview"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <IconPhoto size={24} className="text-muted-foreground/40" />
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Settings */}
       {children && (
