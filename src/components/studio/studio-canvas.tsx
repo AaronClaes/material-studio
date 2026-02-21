@@ -50,6 +50,7 @@ export function StudioCanvas() {
   const addNode = useWorkflowStore((s) => s.addNode)
   const run = useWorkflowStore((s) => s.run)
   const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
+  const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const workflows = useWorkflowStore((s) => s.workflows)
 
   const results = useActiveWorkflowResults()
@@ -88,6 +89,7 @@ export function StudioCanvas() {
         onExportWorkflow={() =>
           activeWorkflow && exportWorkflow(activeWorkflow)
         }
+        onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
         onDeleteWorkflow={() => deleteWorkflow(activeWorkflowId)}
         canDeleteWorkflow={workflows.length > 1}
       />

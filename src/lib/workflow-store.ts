@@ -28,6 +28,7 @@ interface WorkflowStore {
   // Workflow management
   addWorkflow: () => void
   deleteWorkflow: (id: string) => void
+  duplicateWorkflow: (id: string) => void
   setActiveWorkflowId: (id: string) => void
   renameWorkflow: (id: string, name: string) => void
   importWorkflow: (def: {
@@ -91,6 +92,25 @@ export const useWorkflowStore = create<WorkflowStore>()(
         set((s) => ({
           workflows: [...s.workflows, w],
           activeWorkflowId: w.id,
+        }))
+      },
+
+      duplicateWorkflow: (id) => {
+        const wf = get().workflows.find((w) => w.id === id)
+        if (!wf) return
+        const copy: WorkflowDef = {
+          id: `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: `${wf.name} copy`,
+          nodes: wf.nodes.map((n) =>
+            n.data.kind === 'inputNode' ? { ...n, data: { ...n.data, src: '' } } : n,
+          ),
+          edges: wf.edges,
+          results: {},
+          isRunning: false,
+        }
+        set((s) => ({
+          workflows: [...s.workflows, copy],
+          activeWorkflowId: copy.id,
         }))
       },
 

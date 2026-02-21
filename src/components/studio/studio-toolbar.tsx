@@ -1,4 +1,5 @@
 import {
+  IconCopy,
   IconDotsVertical,
   IconFileExport,
   IconPlayerPlay,
@@ -19,6 +20,7 @@ interface StudioToolbarProps {
   isRunning: boolean
   canRun: boolean
   onExportWorkflow: () => void
+  onDuplicateWorkflow: () => void
   onDeleteWorkflow: () => void
   canDeleteWorkflow: boolean
 }
@@ -29,6 +31,7 @@ export function StudioToolbar({
   isRunning,
   canRun,
   onExportWorkflow,
+  onDuplicateWorkflow,
   onDeleteWorkflow,
   canDeleteWorkflow,
 }: StudioToolbarProps) {
@@ -64,11 +67,18 @@ export function StudioToolbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-auto">
             <DropdownMenuItem
+              onClick={onDuplicateWorkflow}
+              className="text-nowrap"
+            >
+              <IconCopy size={14} />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuItem
               onClick={onExportWorkflow}
               className="text-nowrap"
             >
               <IconFileExport size={14} />
-              Export workflow
+              Export
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -77,7 +87,7 @@ export function StudioToolbar({
               variant="destructive"
             >
               <IconTrash size={14} />
-              Remove workflow
+              Remove
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

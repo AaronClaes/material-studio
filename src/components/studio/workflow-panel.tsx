@@ -2,13 +2,13 @@
 
 import { useRef, useState } from 'react'
 import {
-  IconFileExport,
+  IconCopy,
   IconPlus,
   IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
 import type { WorkflowDef } from '@/lib/workflow-store'
-import { exportWorkflow, useWorkflowStore } from '@/lib/workflow-store'
+import { useWorkflowStore } from '@/lib/workflow-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -19,6 +19,7 @@ export function WorkflowPanel() {
   const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
   const setActiveWorkflowId = useWorkflowStore((s) => s.setActiveWorkflowId)
   const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
+  const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const importWorkflow = useWorkflowStore((s) => s.importWorkflow)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -109,29 +110,31 @@ export function WorkflowPanel() {
                 className="shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
                 onClick={(e) => {
                   e.stopPropagation()
-                  exportWorkflow(wf)
+                  duplicateWorkflow(wf.id)
                 }}
-                title="Export workflow"
+                title="Duplicate workflow"
               >
-                <IconFileExport size={12} />
+                <IconCopy size={12} />
               </Button>
 
-              <Button
-                size="xs"
-                variant="ghost"
-                className={cn(
-                  'shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-destructive',
-                  workflows.length <= 1 && 'invisible',
-                )}
-                disabled={workflows.length <= 1}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deleteWorkflow(wf.id)
-                }}
-                title="Delete workflow"
-              >
-                <IconTrash size={12} />
-              </Button>
+              {workflows.length > 1 && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className={cn(
+                    'shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-destructive',
+                    workflows.length <= 1 && 'invisible',
+                  )}
+                  disabled={workflows.length <= 1}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteWorkflow(wf.id)
+                  }}
+                  title="Delete workflow"
+                >
+                  <IconTrash size={12} />
+                </Button>
+              )}
             </div>
           )
         })}
