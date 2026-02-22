@@ -1,7 +1,9 @@
 import type { Edge } from '@xyflow/react'
 import type {
+  AomapNodeData,
   ColorNodeData,
   CropNodeData,
+  DisplacementNodeData,
   InputNodeData,
   NodeKind,
   NormalmapNodeData,
@@ -39,6 +41,16 @@ export const NODE_META: Record<
     label: 'Normal Map',
     icon: 'vector-triangle',
     description: 'Generate a normal map from a height map',
+  },
+  displacement: {
+    label: 'Displacement',
+    icon: 'arrows-move-vertical',
+    description: 'Generate a displacement map from a height map',
+  },
+  aomap: {
+    label: 'AO Map',
+    icon: 'brightness-down',
+    description: 'Generate an ambient occlusion map from a height map',
   },
   outputNode: {
     label: 'Output',
@@ -103,6 +115,26 @@ function defaultData(kind: NodeKind): StudioNodeData {
         zRange: false,
         live: false,
       } satisfies NormalmapNodeData
+    case 'displacement':
+      return {
+        kind: 'displacement',
+        label: 'Displacement',
+        contrast: 0,
+        blurSharp: 0,
+        invert: false,
+        live: false,
+      } satisfies DisplacementNodeData
+    case 'aomap':
+      return {
+        kind: 'aomap',
+        label: 'AO Map',
+        strength: 1,
+        mean: 0.5,
+        range: 0.5,
+        blurSharp: 0,
+        invert: false,
+        live: false,
+      } satisfies AomapNodeData
     case 'outputNode':
       return {
         kind: 'outputNode',
@@ -140,15 +172,13 @@ export function createInitialGraph(): {
     id: 'node-2',
     type: 'outputNode',
     position: { x: 420, y: 160 },
-    data: { kind: 'outputNode', label: 'Output', format: 'png', filename: 'output' },
+    data: {
+      kind: 'outputNode',
+      label: 'Output',
+      format: 'png',
+      filename: 'output',
+    },
   }
 
-  const edge: Edge = {
-    id: 'edge-1',
-    source: 'node-1',
-    target: 'node-2',
-    type: 'smoothstep',
-  }
-
-  return { nodes: [inputNode, outputNode], edges: [edge] }
+  return { nodes: [inputNode, outputNode], edges: [] }
 }

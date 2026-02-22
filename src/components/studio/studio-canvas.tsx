@@ -20,6 +20,8 @@ import { CropNode } from './nodes/crop-node'
 import { ResolutionNode } from './nodes/resolution-node'
 import { ColorNode } from './nodes/color-node'
 import { NormalmapNode } from './nodes/normalmap-node'
+import { DisplacementNode } from './nodes/displacement-node'
+import { AomapNode } from './nodes/aomap-node'
 import type {
   Connection,
   EdgeChange,
@@ -39,6 +41,8 @@ const nodeTypes: NodeTypes = {
   resolution: ResolutionNode,
   color: ColorNode,
   normalmap: NormalmapNode,
+  displacement: DisplacementNode,
+  aomap: AomapNode,
 }
 
 export function StudioCanvas() {

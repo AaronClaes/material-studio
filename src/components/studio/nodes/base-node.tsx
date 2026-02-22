@@ -75,7 +75,7 @@ export function BaseNode({
       }
       <Card
         className={cn(
-          'w-[260px] rounded-none shadow-md py-0 gap-1',
+          'w-[280px] rounded-none shadow-md py-0 gap-1',
           selected && 'ring-2 ring-primary',
         )}
       >

@@ -1,35 +1,21 @@
 // Pure Canvas 2D API image processing functions
 
+import {
+  applyBlurSharp,
+  imageDataToCanvas,
+  imageDataToDataUrl,
+  loadImageAsImageData,
+  toGrayscaleHeights,
+} from './utils'
+
+export { imageDataToDataUrl }
+
 export function processInputNode(src: string): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      resolve(ctx.getImageData(0, 0, canvas.width, canvas.height))
-    }
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = src
-  })
+  return loadImageAsImageData(src)
 }
 
 export function dataUrlToImageData(dataUrl: string): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      resolve(ctx.getImageData(0, 0, canvas.width, canvas.height))
-    }
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = dataUrl
-  })
+  return loadImageAsImageData(dataUrl)
 }
 
 export function processCropNode(
@@ -44,17 +30,11 @@ export function processCropNode(
   const w = Math.max(1, Math.min(params.width, srcW - x))
   const h = Math.max(1, Math.min(params.height, srcH - y))
 
-  const srcCanvas = document.createElement('canvas')
-  srcCanvas.width = srcW
-  srcCanvas.height = srcH
-  const srcCtx = srcCanvas.getContext('2d')!
-  srcCtx.putImageData(input, 0, 0)
-
   const dstCanvas = document.createElement('canvas')
   dstCanvas.width = w
   dstCanvas.height = h
   const dstCtx = dstCanvas.getContext('2d')!
-  dstCtx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h)
+  dstCtx.drawImage(imageDataToCanvas(input), x, y, w, h, 0, 0, w, h)
 
   return Promise.resolve(dstCtx.getImageData(0, 0, w, h))
 }
@@ -77,17 +57,11 @@ export function processResolutionNode(
   width = Math.max(1, width)
   height = Math.max(1, height)
 
-  const srcCanvas = document.createElement('canvas')
-  srcCanvas.width = input.width
-  srcCanvas.height = input.height
-  const srcCtx = srcCanvas.getContext('2d')!
-  srcCtx.putImageData(input, 0, 0)
-
   const dstCanvas = document.createElement('canvas')
   dstCanvas.width = width
   dstCanvas.height = height
   const dstCtx = dstCanvas.getContext('2d')!
-  dstCtx.drawImage(srcCanvas, 0, 0, width, height)
+  dstCtx.drawImage(imageDataToCanvas(input), 0, 0, width, height)
 
   return Promise.resolve(dstCtx.getImageData(0, 0, width, height))
 }
@@ -102,12 +76,6 @@ export function processColorNode(
     tintColor: string
   },
 ): Promise<ImageData> {
-  const srcCanvas = document.createElement('canvas')
-  srcCanvas.width = input.width
-  srcCanvas.height = input.height
-  const srcCtx = srcCanvas.getContext('2d')!
-  srcCtx.putImageData(input, 0, 0)
-
   const dstCanvas = document.createElement('canvas')
   dstCanvas.width = input.width
   dstCanvas.height = input.height
@@ -126,7 +94,7 @@ export function processColorNode(
     `hue-rotate(${hue}deg)`,
   ].join(' ')
 
-  dstCtx.drawImage(srcCanvas, 0, 0)
+  dstCtx.drawImage(imageDataToCanvas(input), 0, 0)
 
   // Apply tint color multiplication — like Three.js material color.
   // #ffffff means no tint (multiply by 1). Any other color shifts the hues.
@@ -135,12 +103,7 @@ export function processColorNode(
     const r = parseInt(tint.slice(1, 3), 16) / 255
     const g = parseInt(tint.slice(3, 5), 16) / 255
     const b = parseInt(tint.slice(5, 7), 16) / 255
-    const imageData = dstCtx.getImageData(
-      0,
-      0,
-      dstCanvas.width,
-      dstCanvas.height,
-    )
+    const imageData = dstCtx.getImageData(0, 0, dstCanvas.width, dstCanvas.height)
     const d = imageData.data
     for (let i = 0; i < d.length; i += 4) {
       d[i] = Math.round(d[i] * r)
@@ -150,93 +113,16 @@ export function processColorNode(
     dstCtx.putImageData(imageData, 0, 0)
   }
 
-  return Promise.resolve(
-    dstCtx.getImageData(0, 0, dstCanvas.width, dstCanvas.height),
-  )
+  return Promise.resolve(dstCtx.getImageData(0, 0, dstCanvas.width, dstCanvas.height))
 }
 
 export function processOutputNode(
   input: ImageData,
   params: { format: 'png' | 'jpg' | 'webp' },
 ): Promise<{ imageData: ImageData; dataUrl: string }> {
-  const canvas = document.createElement('canvas')
-  canvas.width = input.width
-  canvas.height = input.height
-  const ctx = canvas.getContext('2d')!
-  ctx.putImageData(input, 0, 0)
-
   const mimeMap = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }
-  const dataUrl = canvas.toDataURL(mimeMap[params.format])
-
+  const dataUrl = imageDataToCanvas(input).toDataURL(mimeMap[params.format])
   return Promise.resolve({ imageData: input, dataUrl })
-}
-
-function boxBlur1D(
-  data: Float32Array,
-  width: number,
-  height: number,
-  radius: number,
-): Float32Array {
-  const out = new Float32Array(data.length)
-  const r = Math.max(1, Math.round(radius))
-
-  // Horizontal pass
-  const tmp = new Float32Array(data.length)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      let sum = 0
-      let count = 0
-      for (let dx = -r; dx <= r; dx++) {
-        const sx = Math.max(0, Math.min(width - 1, x + dx))
-        sum += data[y * width + sx]
-        count++
-      }
-      tmp[y * width + x] = sum / count
-    }
-  }
-
-  // Vertical pass
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      let sum = 0
-      let count = 0
-      for (let dy = -r; dy <= r; dy++) {
-        const sy = Math.max(0, Math.min(height - 1, y + dy))
-        sum += tmp[sy * width + x]
-        count++
-      }
-      out[y * width + x] = sum / count
-    }
-  }
-
-  return out
-}
-
-function applyBlurSharp(
-  data: Float32Array,
-  width: number,
-  height: number,
-  blurSharp: number,
-): Float32Array<ArrayBufferLike> {
-  if (blurSharp > 0) {
-    let result = data
-    for (let i = 0; i < 3; i++) {
-      result = boxBlur1D(result, width, height, blurSharp)
-    }
-    return result
-  } else {
-    // Unsharp mask: sharpen
-    const factor = Math.abs(blurSharp) / 8
-    const blurred = boxBlur1D(data, width, height, 1)
-    const out = new Float32Array(data.length)
-    for (let i = 0; i < data.length; i++) {
-      out[i] = Math.max(
-        0,
-        Math.min(1, data[i] + factor * (data[i] - blurred[i])),
-      )
-    }
-    return out
-  }
 }
 
 export function processNormalmapNode(
@@ -253,16 +139,8 @@ export function processNormalmapNode(
   },
 ): Promise<ImageData> {
   const { width, height } = input
-  const src = input.data
 
-  // Convert to grayscale height map via BT.709 luminance
-  let heights: Float32Array<ArrayBufferLike> = new Float32Array(width * height)
-  for (let i = 0; i < width * height; i++) {
-    const r = src[i * 4] / 255
-    const g = src[i * 4 + 1] / 255
-    const b = src[i * 4 + 2] / 255
-    heights[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b
-  }
+  let heights = toGrayscaleHeights(input)
 
   if (params.invertHeight) {
     for (let i = 0; i < heights.length; i++) {
@@ -339,12 +217,91 @@ export function processNormalmapNode(
   return Promise.resolve(new ImageData(out, width, height))
 }
 
-/** Convert ImageData to a full-resolution PNG data URL for display. */
-export function imageDataToDataUrl(data: ImageData): string {
-  const canvas = document.createElement('canvas')
-  canvas.width = data.width
-  canvas.height = data.height
-  const ctx = canvas.getContext('2d')!
-  ctx.putImageData(data, 0, 0)
-  return canvas.toDataURL('image/png')
+export function processDisplacementNode(
+  input: ImageData,
+  params: {
+    contrast: number
+    blurSharp: number
+    invert: boolean
+  },
+): Promise<ImageData> {
+  const { width, height } = input
+
+  let heights = toGrayscaleHeights(input)
+
+  if (params.invert) {
+    for (let i = 0; i < heights.length; i++) {
+      heights[i] = 1 - heights[i]
+    }
+  }
+
+  if (params.blurSharp !== 0) {
+    heights = applyBlurSharp(heights, width, height, params.blurSharp)
+  }
+
+  const out = new Uint8ClampedArray(width * height * 4)
+  for (let i = 0; i < width * height; i++) {
+    const h = Math.max(0, Math.min(1, 0.5 + (heights[i] - 0.5) * (1 + params.contrast)))
+    const v = Math.round(h * 255)
+    out[i * 4] = v
+    out[i * 4 + 1] = v
+    out[i * 4 + 2] = v
+    out[i * 4 + 3] = 255
+  }
+
+  return Promise.resolve(new ImageData(out, width, height))
+}
+
+export function processAomapNode(
+  input: ImageData,
+  params: {
+    strength: number
+    mean: number
+    range: number
+    blurSharp: number
+    invert: boolean
+  },
+): Promise<ImageData> {
+  const { width, height } = input
+
+  let heights = toGrayscaleHeights(input)
+
+  if (params.blurSharp !== 0) {
+    heights = applyBlurSharp(heights, width, height, params.blurSharp)
+  }
+
+  if (params.invert) {
+    for (let i = 0; i < heights.length; i++) {
+      heights[i] = 1 - heights[i]
+    }
+  }
+
+  const radius = params.range * Math.min(width, height) * 0.3
+  const RAY_COUNT = 16
+  const out = new Uint8ClampedArray(width * height * 4)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const centerH = heights[y * width + x]
+      let occluded = 0
+
+      for (let r = 0; r < RAY_COUNT; r++) {
+        const angle = (r / RAY_COUNT) * Math.PI * 2
+        const sx = Math.max(0, Math.min(width - 1, Math.round(x + Math.cos(angle) * radius)))
+        const sy = Math.max(0, Math.min(height - 1, Math.round(y + Math.sin(angle) * radius)))
+        if (heights[sy * width + sx] > centerH) occluded++
+      }
+
+      let ao = 1 - (occluded / RAY_COUNT) * params.strength
+      ao = Math.max(0, Math.min(1, ao + (params.mean - 0.5)))
+      const v = Math.round(ao * 255)
+      const idx = (y * width + x) * 4
+      out[idx] = v
+      out[idx + 1] = v
+      out[idx + 2] = v
+      out[idx + 3] = 255
+    }
+  }
+
+  return Promise.resolve(new ImageData(out, width, height))
 }

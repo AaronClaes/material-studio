@@ -6,6 +6,8 @@ export type NodeKind =
   | 'resolution'
   | 'color'
   | 'normalmap'
+  | 'displacement'
+  | 'aomap'
   | 'outputNode'
 
 export interface InputNodeData {
@@ -60,6 +62,28 @@ export interface NormalmapNodeData {
   disabled?: boolean
 }
 
+export interface DisplacementNodeData {
+  kind: 'displacement'
+  label: string
+  contrast: number
+  blurSharp: number
+  invert: boolean
+  live?: boolean
+  disabled?: boolean
+}
+
+export interface AomapNodeData {
+  kind: 'aomap'
+  label: string
+  strength: number
+  mean: number
+  range: number
+  blurSharp: number
+  invert: boolean
+  live?: boolean
+  disabled?: boolean
+}
+
 export interface OutputNodeData {
   kind: 'outputNode'
   label: string
@@ -74,6 +98,8 @@ export type StudioNodeData = (
   | ResolutionNodeData
   | ColorNodeData
   | NormalmapNodeData
+  | DisplacementNodeData
+  | AomapNodeData
   | OutputNodeData
 ) & Record<string, unknown>
 

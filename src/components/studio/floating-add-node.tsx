@@ -1,4 +1,6 @@
 import {
+  IconArrowsMoveVertical,
+  IconBrightnessDown,
   IconCrop,
   IconDownload,
   IconMaximize,
@@ -18,23 +20,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { NODE_META, createNode } from '@/lib/workflow'
 
-const NODE_KINDS: Array<NodeKind> = [
-  'inputNode',
-  'crop',
-  'resolution',
-  'color',
-  'normalmap',
-  'outputNode',
+const NODES: Array<{ kind: NodeKind; icon: ElementType }> = [
+  { kind: 'inputNode', icon: IconPhoto },
+  { kind: 'crop', icon: IconCrop },
+  { kind: 'resolution', icon: IconMaximize },
+  { kind: 'color', icon: IconPalette },
+  { kind: 'normalmap', icon: IconVectorTriangle },
+  { kind: 'displacement', icon: IconArrowsMoveVertical },
+  { kind: 'aomap', icon: IconBrightnessDown },
+  { kind: 'outputNode', icon: IconDownload },
 ]
-
-const NODE_ICONS: Record<NodeKind, ElementType> = {
-  inputNode: IconPhoto,
-  crop: IconCrop,
-  resolution: IconMaximize,
-  color: IconPalette,
-  normalmap: IconVectorTriangle,
-  outputNode: IconDownload,
-}
 
 interface FloatingAddNodeProps {
   onAddNode: (node: StudioNode) => void
@@ -63,8 +58,7 @@ export function FloatingAddNode({ onAddNode }: FloatingAddNodeProps) {
           align="center"
           className="w-72 mb-1 p-1.5"
         >
-          {NODE_KINDS.map((kind) => {
-            const Icon = NODE_ICONS[kind]
+          {NODES.map(({ kind, icon: Icon }) => {
             const meta = NODE_META[kind]
             return (
               <DropdownMenuItem

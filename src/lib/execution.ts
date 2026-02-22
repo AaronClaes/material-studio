@@ -1,7 +1,9 @@
 import {
   imageDataToDataUrl,
+  processAomapNode,
   processColorNode,
   processCropNode,
+  processDisplacementNode,
   processInputNode,
   processNormalmapNode,
   processOutputNode,
@@ -120,6 +122,26 @@ async function processNode(
       invertG: data.invertG,
       invertHeight: data.invertHeight,
       zRange: data.zRange,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (data.kind === 'displacement') {
+    const imageData = await processDisplacementNode(input, {
+      contrast: data.contrast,
+      blurSharp: data.blurSharp,
+      invert: data.invert,
+    })
+    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+  }
+
+  if (data.kind === 'aomap') {
+    const imageData = await processAomapNode(input, {
+      strength: data.strength,
+      mean: data.mean,
+      range: data.range,
+      blurSharp: data.blurSharp,
+      invert: data.invert,
     })
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
   }
