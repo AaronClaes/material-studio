@@ -244,7 +244,7 @@ export function getDownstreamIds(
 
 export async function runFromNode(
   startNodeId: string,
-  initialInput: ImageData,
+  initialInput: ImageData | undefined,
   nodes: Array<StudioNode>,
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
@@ -262,11 +262,37 @@ export async function runFromNode(
 
   // Pre-seed the upstream output so startNodeId can find its input
   const upstreamId = incomingEdge.get(startNodeId)
-  if (upstreamId) {
+  if (upstreamId && initialInput) {
     outputs.set(upstreamId, initialInput)
   }
 
   await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
+}
+
+function getReachableFromInputs(
+  nodes: Array<StudioNode>,
+  edges: Array<StudioEdge>,
+): Set<string> {
+  const adj = new Map<string, Array<string>>()
+  for (const edge of edges) {
+    if (!adj.has(edge.source)) adj.set(edge.source, [])
+    adj.get(edge.source)!.push(edge.target)
+  }
+
+  const visited = new Set<string>()
+  const queue = nodes
+    .filter((n) => n.data.kind === 'inputNode' && n.data.src)
+    .map((n) => n.id)
+
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (visited.has(id)) continue
+    visited.add(id)
+    for (const neighbor of adj.get(id) ?? []) {
+      queue.push(neighbor)
+    }
+  }
+  return visited
 }
 
 export async function runWorkflow(
@@ -274,7 +300,12 @@ export async function runWorkflow(
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
 ): Promise<void> {
-  const order = topoSort(nodes, edges)
+  const reachable = getReachableFromInputs(nodes, edges)
+  const reachableNodes = nodes.filter((n) => reachable.has(n.id))
+  const reachableEdges = edges.filter(
+    (e) => reachable.has(e.source) && reachable.has(e.target),
+  )
+  const order = topoSort(reachableNodes, reachableEdges)
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
   const incomingEdge = buildIncomingEdgeMap(edges)
   const outputs = new Map<string, ImageData>()

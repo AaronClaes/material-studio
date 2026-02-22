@@ -26,7 +26,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       const src = ev.target?.result as string
       // Update store directly (synchronous) so run() sees the new src immediately
       patchNodeData(activeWorkflowId, id, { src, srcFilename })
-      useWorkflowStore.getState().run(activeWorkflowId)
+      useWorkflowStore.getState().runNodesFrom(activeWorkflowId, id)
     }
     reader.readAsDataURL(file)
   }

@@ -343,7 +343,78 @@ export const useWorkflowStore = create<WorkflowStore>()(
         if (!node) return
 
         if (node.data.kind === 'inputNode') {
-          await get().run(workflowId)
+          if (!node.data.src) return
+          const downstreamIds = getDownstreamIds(nodeId, edges)
+          set((s) => ({
+            workflows: updateWorkflow(s.workflows, workflowId, (w) => {
+              const results = { ...w.results }
+              for (const id of downstreamIds) {
+                results[id] = {
+                  status: 'idle',
+                  outputDataUrl: null,
+                  error: null,
+                }
+              }
+              return { isRunning: true, results }
+            }),
+          }))
+
+          await runFromNode(nodeId, undefined, nodes, edges, {
+            onNodeStart: (id) => {
+              set((s) => ({
+                workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+                  results: {
+                    ...w.results,
+                    [id]: {
+                      status: 'running',
+                      outputDataUrl: null,
+                      error: null,
+                    },
+                  },
+                })),
+              }))
+            },
+            onNodeDone: (id, dataUrl) => {
+              set((s) => ({
+                workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+                  results: {
+                    ...w.results,
+                    [id]: { status: 'done', outputDataUrl: dataUrl, error: null },
+                  },
+                })),
+              }))
+            },
+            onNodeError: (id, error) => {
+              set((s) => ({
+                workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+                  results: {
+                    ...w.results,
+                    [id]: { status: 'error', outputDataUrl: null, error },
+                  },
+                })),
+              }))
+            },
+            onNodeSkipped: (id, dataUrl) => {
+              set((s) => ({
+                workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+                  results: {
+                    ...w.results,
+                    [id]: {
+                      status: 'skipped',
+                      outputDataUrl: dataUrl,
+                      error: null,
+                    },
+                  },
+                })),
+              }))
+            },
+          })
+
+          set((s) => ({
+            workflows: updateWorkflow(s.workflows, workflowId, () => ({
+              isRunning: false,
+            })),
+          }))
           return
         }
 
