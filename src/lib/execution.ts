@@ -148,7 +148,11 @@ async function processNode(
 
   // outputNode
   const result = await processOutputNode(input, { format: data.format })
-  return { kind: 'output', imageData: result.imageData, dataUrl: result.dataUrl }
+  return {
+    kind: 'output',
+    imageData: result.imageData,
+    dataUrl: result.dataUrl,
+  }
 }
 
 /**
@@ -187,7 +191,10 @@ async function executeOrder(
       outputs.set(id, result.imageData)
       callbacks.onNodeDone(id, result.dataUrl)
     } catch (err) {
-      callbacks.onNodeError(id, err instanceof Error ? err.message : String(err))
+      callbacks.onNodeError(
+        id,
+        err instanceof Error ? err.message : String(err),
+      )
     }
   }
 }
@@ -215,7 +222,10 @@ export async function runSingleNode(
     const result = await processNode(node.data, input)
     callbacks.onNodeDone(nodeId, result.dataUrl)
   } catch (err) {
-    callbacks.onNodeError(nodeId, err instanceof Error ? err.message : String(err))
+    callbacks.onNodeError(
+      nodeId,
+      err instanceof Error ? err.message : String(err),
+    )
   }
 }
 

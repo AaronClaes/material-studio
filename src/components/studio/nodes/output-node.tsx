@@ -16,48 +16,32 @@ import {
 import {
   useActiveWorkflowActions,
   useActiveWorkflowIsRunning,
-  useActiveWorkflowResults,
 } from '@/lib/workflow-store'
 import { useDirectoryStore } from '@/lib/directory-store'
-
-declare global {
-  interface Window {
-    showDirectoryPicker: (options?: {
-      mode?: 'read' | 'readwrite'
-    }) => Promise<FileSystemDirectoryHandle>
-  }
-}
-
-const supportsDirectoryPicker = 'showDirectoryPicker' in window
+import {
+  supportsDirectoryPicker,
+  useDirectoryPicker,
+} from '@/hooks/use-directory-picker'
+import { useNodeConnection } from '@/hooks/use-node-connection'
 
 export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
-  const { setNodes, getEdges, updateNodeData } = useReactFlow()
-  const results = useActiveWorkflowResults()
+  const { setNodes, updateNodeData } = useReactFlow()
   const isRunning = useActiveWorkflowIsRunning()
   const { runNode } = useActiveWorkflowActions()
   const handle = useDirectoryStore((s) => s.handles[id])
   const setHandle = useDirectoryStore((s) => s.setHandle)
-
-  const result = results[id]
-
-  const upstreamId = getEdges().find((e) => e.target === id)?.source
-  const upstreamStatus = upstreamId ? results[upstreamId]?.status : undefined
-  const hasValidInput =
-    !!upstreamId && (upstreamStatus === 'done' || upstreamStatus === 'skipped')
+  const { pickDirectory } = useDirectoryPicker('readwrite')
+  const { result, hasValidInput } = useNodeConnection(id)
 
   function toggleDisabled() {
     updateNodeData(id, { disabled: !data.disabled })
   }
 
   async function pickFolder() {
-    try {
-      const dir = await window.showDirectoryPicker({ mode: 'readwrite' })
-      setHandle(id, dir)
-    } catch {
-      // user cancelled
-    }
+    const dir = await pickDirectory()
+    if (dir) setHandle(id, dir)
   }
 
   function setFormat(format: 'png' | 'jpg' | 'webp') {
@@ -140,7 +124,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
         <div className="space-y-1.5">
           <Label className="text-xs">Format</Label>
           <Select value={data.format} onValueChange={setFormat}>
-            <SelectTrigger className="h-7 text-xs">
+            <SelectTrigger className="h-7 text-xs w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

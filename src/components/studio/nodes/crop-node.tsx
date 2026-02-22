@@ -1,42 +1,27 @@
-import { useEdges, useReactFlow } from '@xyflow/react'
 import { IconCrop } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
-import type { StudioNode } from '@/types/studio'
+import type { CropNodeData, StudioNode } from '@/types/studio'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   useActiveWorkflowActions,
   useActiveWorkflowIsRunning,
-  useActiveWorkflowResults,
 } from '@/lib/workflow-store'
+import { useNodeConnection } from '@/hooks/use-node-connection'
+import { useNodeUpdater } from '@/hooks/use-node-updater'
 
 export function CropNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'crop') return null
 
-  const { setNodes, updateNodeData } = useReactFlow()
-  const edges = useEdges()
-  const results = useActiveWorkflowResults()
   const isRunning = useActiveWorkflowIsRunning()
   const { runNode, runNodesFrom } = useActiveWorkflowActions()
-
-  const result = results[id]
-  const upstreamId = edges.find((e) => e.target === id)?.source
-  const upstreamResult = upstreamId ? results[upstreamId] : undefined
-  const hasValidInput =
-    upstreamResult?.status === 'done' || upstreamResult?.status === 'skipped'
-
-  function update(patch: Partial<typeof data>) {
-    setNodes((nodes) =>
-      nodes.map((n) =>
-        n.id === id ? { ...n, data: { ...n.data, ...patch } } : n,
-      ),
-    )
-  }
-
-  function toggleDisabled() {
-    updateNodeData(id, { disabled: !data.disabled })
-  }
+  const { result, hasValidInput } = useNodeConnection(id)
+  const { update, toggleDisabled } = useNodeUpdater<CropNodeData>(id, {
+    live: false,
+    hasValidInput,
+    isRunning,
+  })
 
   return (
     <BaseNode
@@ -49,7 +34,7 @@ export function CropNode({ id, data, selected }: NodeProps<StudioNode>) {
       isRunning={isRunning}
       hasValidInput={hasValidInput}
       disabled={data.disabled}
-      onToggleDisabled={toggleDisabled}
+      onToggleDisabled={() => toggleDisabled(data.disabled ?? false)}
       onRun={() => runNode(id)}
       onRunNodes={() => runNodesFrom(id)}
       nodeId={id}

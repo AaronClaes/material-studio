@@ -10,17 +10,10 @@ import {
   useWorkflowStore,
 } from '@/lib/workflow-store'
 import { useDirectoryStore } from '@/lib/directory-store'
-
-declare global {
-  interface Window {
-    showDirectoryPicker: (options?: {
-      mode?: 'read' | 'readwrite'
-    }) => Promise<FileSystemDirectoryHandle>
-  }
-}
-
-const supportsDirectoryPicker =
-  typeof window !== 'undefined' && 'showDirectoryPicker' in window
+import {
+  supportsDirectoryPicker,
+  useDirectoryPicker,
+} from '@/hooks/use-directory-picker'
 
 const IMAGE_EXTENSIONS = new Set([
   'png',
@@ -41,30 +34,28 @@ export function BatchInputNode({ id, data, selected }: NodeProps<StudioNode>) {
   const isRunning = useActiveWorkflowIsRunning()
   const handle = useDirectoryStore((s) => s.handles[id])
   const setHandle = useDirectoryStore((s) => s.setHandle)
+  const { pickDirectory } = useDirectoryPicker('read')
 
   const result = results[id]
 
   async function pickFolder() {
-    try {
-      const dir = await window.showDirectoryPicker({ mode: 'read' })
-      setHandle(id, dir)
+    const dir = await pickDirectory()
+    if (!dir) return
+    setHandle(id, dir)
 
-      let count = 0
-      // @ts-expect-error - values() is not supported in the type
-      for await (const entry of dir.values()) {
-        if (entry.kind !== 'file') continue
-        const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
-        if (IMAGE_EXTENSIONS.has(ext)) count++
-      }
-
-      useWorkflowStore.getState().patchNodeData(activeWorkflowId, id, {
-        folderName: dir.name,
-        fileCount: count,
-        processedCount: 0,
-      })
-    } catch {
-      // user cancelled
+    let count = 0
+    // @ts-expect-error - values() is not supported in the type
+    for await (const entry of dir.values()) {
+      if (entry.kind !== 'file') continue
+      const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
+      if (IMAGE_EXTENSIONS.has(ext)) count++
     }
+
+    useWorkflowStore.getState().patchNodeData(activeWorkflowId, id, {
+      folderName: dir.name,
+      fileCount: count,
+      processedCount: 0,
+    })
   }
 
   async function handleRun() {

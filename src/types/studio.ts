@@ -114,7 +114,8 @@ export type StudioNodeData = (
   | DisplacementNodeData
   | AomapNodeData
   | OutputNodeData
-) & Record<string, unknown>
+) &
+  Record<string, unknown>
 
 export type StudioNode = Node<StudioNodeData, NodeKind>
 export type StudioEdge = Edge

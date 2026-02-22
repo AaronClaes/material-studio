@@ -1,12 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import {
-  IconCopy,
-  IconPlus,
-  IconTrash,
-  IconUpload,
-} from '@tabler/icons-react'
+import { IconCopy, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react'
 import type { WorkflowDef } from '@/lib/workflow-store'
 import { useWorkflowStore } from '@/lib/workflow-store'
 import { cn } from '@/lib/utils'

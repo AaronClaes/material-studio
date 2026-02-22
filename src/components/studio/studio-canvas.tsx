@@ -14,15 +14,17 @@ import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
 import { NodeInspectorPanel } from './node-inspector-panel'
 import { WorkflowPanel } from './workflow-panel'
-import { InputNode } from './nodes/input-node'
-import { BatchInputNode } from './nodes/batch-input-node'
-import { OutputNode } from './nodes/output-node'
-import { CropNode } from './nodes/crop-node'
-import { ResolutionNode } from './nodes/resolution-node'
-import { ColorNode } from './nodes/color-node'
-import { NormalmapNode } from './nodes/normalmap-node'
-import { DisplacementNode } from './nodes/displacement-node'
-import { AomapNode } from './nodes/aomap-node'
+import {
+  AomapNode,
+  BatchInputNode,
+  ColorNode,
+  CropNode,
+  DisplacementNode,
+  InputNode,
+  NormalmapNode,
+  OutputNode,
+  ResolutionNode,
+} from './nodes'
 import type {
   Connection,
   EdgeChange,
