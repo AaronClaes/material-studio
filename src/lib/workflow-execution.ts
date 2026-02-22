@@ -1,13 +1,9 @@
-import {
-  getDownstreamIds,
-  runFromNode,
-  runSingleNode,
-  runWorkflow,
-} from './execution'
+import { getDownstreamIds, runFromNode, runSingleNode } from './execution'
 import { dataUrlToImageData, processInputNode } from './processors'
 import { useDirectoryStore } from './directory-store'
 import { updateWorkflow } from './workflow-crud'
-import type { ExecutionResults, StudioNode } from '@/types/studio'
+import type { RunCallbacks } from './execution'
+import type { ExecutionResults, StudioEdge, StudioNode } from '@/types/studio'
 import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
 
 /**
@@ -17,19 +13,27 @@ import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
  */
 async function saveOutputNodes(
   nodes: Array<StudioNode>,
+  edges: Array<StudioEdge>,
   results: ExecutionResults,
   filter: Set<string>,
   stemOverride?: string,
 ): Promise<void> {
-  let stem: string
-  if (stemOverride !== undefined) {
-    stem = stemOverride
-  } else {
-    const inputNode = nodes.find((n) => n.data.kind === 'inputNode')
-    stem =
-      inputNode?.data.kind === 'inputNode'
-        ? (inputNode.data.srcFilename ?? '')
-        : ''
+  // Build upstream map once so we can trace each output back to its input node.
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  const incomingEdge = new Map<string, string>()
+  for (const edge of edges) {
+    if (!incomingEdge.has(edge.target))
+      incomingEdge.set(edge.target, edge.source)
+  }
+
+  function findUpstreamInputStem(outputId: string): string {
+    let currentId: string | undefined = outputId
+    while (currentId) {
+      const n = nodeMap.get(currentId)
+      if (n?.data.kind === 'inputNode') return n.data.srcFilename ?? ''
+      currentId = incomingEdge.get(currentId)
+    }
+    return ''
   }
 
   for (const node of nodes) {
@@ -39,6 +43,8 @@ async function saveOutputNodes(
     if (result?.status !== 'done' || !result.outputDataUrl) continue
     const dirHandle = useDirectoryStore.getState().handles[node.id]
     if (!dirHandle) continue
+    const stem =
+      stemOverride !== undefined ? stemOverride : findUpstreamInputStem(node.id)
     const outputStem = (node.data.filename || 'output').replace('{name}', stem)
     const filename = `${outputStem}.${node.data.format}`
     try {
@@ -54,10 +60,7 @@ async function saveOutputNodes(
   }
 }
 
-function makeCallbacks(
-  set: StoreSet,
-  workflowId: string,
-): Parameters<typeof runWorkflow>[2] {
+function makeCallbacks(set: StoreSet, workflowId: string): RunCallbacks {
   return {
     onNodeStart: (id) => {
       set((s) => ({
@@ -126,28 +129,48 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         await get().runBatch(workflowId, nodeId)
       }
 
-      const hasRegularInputs = nodes.some(
+      const regularInputs = nodes.filter(
         (n) => n.data.kind === 'inputNode' && !n.data.batch && n.data.src,
       )
-      if (!hasRegularInputs) return
+      if (regularInputs.length === 0) return
 
-      const allIds = new Set(nodes.map((n) => n.id))
-      const idle: ExecutionResults = {}
-      for (const node of nodes) {
-        idle[node.id] = { status: 'idle', outputDataUrl: null, error: null }
+      // Only reset nodes downstream of regular inputs — preserve batch results
+      const affectedIds = new Set<string>()
+      for (const inputNode of regularInputs) {
+        for (const id of getDownstreamIds(inputNode.id, edges)) {
+          affectedIds.add(id)
+        }
       }
 
       set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, () => ({
-          isRunning: true,
-          results: idle,
-        })),
+        workflows: updateWorkflow(s.workflows, workflowId, (w) => {
+          const results = { ...w.results }
+          for (const id of affectedIds) {
+            results[id] = { status: 'idle', outputDataUrl: null, error: null }
+          }
+          return { isRunning: true, results }
+        }),
       }))
 
-      await runWorkflow(nodes, edges, makeCallbacks(set, workflowId))
-
-      const afterWf = getWorkflow(get, workflowId)
-      if (afterWf) await saveOutputNodes(afterWf.nodes, afterWf.results, allIds)
+      const callbacks = makeCallbacks(set, workflowId)
+      for (const inputNode of regularInputs) {
+        await runFromNode(inputNode.id, undefined, nodes, edges, callbacks)
+        const downstreamIds = getDownstreamIds(inputNode.id, edges)
+        const afterWf = getWorkflow(get, workflowId)
+        if (afterWf) {
+          const stem =
+            inputNode.data.kind === 'inputNode'
+              ? (inputNode.data.srcFilename ?? '')
+              : undefined
+          await saveOutputNodes(
+            afterWf.nodes,
+            afterWf.edges,
+            afterWf.results,
+            downstreamIds,
+            stem,
+          )
+        }
+      }
 
       set((s) => ({
         workflows: updateWorkflow(s.workflows, workflowId, () => ({
@@ -192,7 +215,12 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
-        await saveOutputNodes(afterWf.nodes, afterWf.results, new Set([nodeId]))
+        await saveOutputNodes(
+          afterWf.nodes,
+          afterWf.edges,
+          afterWf.results,
+          new Set([nodeId]),
+        )
     },
 
     runNodesFrom: async (workflowId: string, nodeId: string) => {
@@ -221,8 +249,17 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         await runFromNode(nodeId, undefined, nodes, edges, callbacks)
 
         const afterWf = getWorkflow(get, workflowId)
-        if (afterWf)
-          await saveOutputNodes(afterWf.nodes, afterWf.results, downstreamIds)
+        if (afterWf) {
+          const stem = node.data.srcFilename
+
+          await saveOutputNodes(
+            afterWf.nodes,
+            afterWf.edges,
+            afterWf.results,
+            downstreamIds,
+            stem,
+          )
+        }
 
         set((s) => ({
           workflows: updateWorkflow(s.workflows, workflowId, () => ({
@@ -258,7 +295,12 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
-        await saveOutputNodes(afterWf.nodes, afterWf.results, affectedIds)
+        await saveOutputNodes(
+          afterWf.nodes,
+          afterWf.edges,
+          afterWf.results,
+          affectedIds,
+        )
 
       set((s) => ({
         workflows: updateWorkflow(s.workflows, workflowId, () => ({
@@ -350,6 +392,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         const afterWf = get().workflows.find((w) => w.id === workflowId)!
         await saveOutputNodes(
           afterWf.nodes,
+          afterWf.edges,
           afterWf.results,
           downstreamIds,
           stem,

@@ -167,13 +167,23 @@ async function executeOrder(
   outputs: Map<string, ImageData>,
   callbacks: RunCallbacks,
 ): Promise<void> {
+  const failed = new Set<string>()
+
   for (const id of order) {
     const node = nodeMap.get(id)
     if (!node) continue
 
+    const upstreamId = incomingEdge.get(id)
+
+    // Skip if upstream failed — no point processing downstream nodes
+    if (upstreamId && failed.has(upstreamId)) {
+      failed.add(id)
+      callbacks.onNodeError(id, 'Skipped: upstream node failed')
+      continue
+    }
+
     // Skip disabled nodes — thread upstream data through unchanged
     if (node.data.kind !== 'inputNode' && node.data.disabled) {
-      const upstreamId = incomingEdge.get(id)
       const upstreamData = upstreamId ? outputs.get(upstreamId) : undefined
       if (upstreamData) {
         outputs.set(id, upstreamData)
@@ -185,12 +195,12 @@ async function executeOrder(
     callbacks.onNodeStart(id)
 
     try {
-      const upstreamId = incomingEdge.get(id)
       const input = upstreamId ? outputs.get(upstreamId) : undefined
       const result = await processNode(node.data, input)
       outputs.set(id, result.imageData)
       callbacks.onNodeDone(id, result.dataUrl)
     } catch (err) {
+      failed.add(id)
       callbacks.onNodeError(
         id,
         err instanceof Error ? err.message : String(err),
@@ -202,7 +212,9 @@ async function executeOrder(
 function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
   const map = new Map<string, string>()
   for (const edge of edges) {
-    map.set(edge.target, edge.source)
+    // First edge wins — prevents non-deterministic behaviour when multiple
+    // edges target the same node (fan-in).
+    if (!map.has(edge.target)) map.set(edge.target, edge.source)
   }
   return map
 }
@@ -267,58 +279,37 @@ export async function runFromNode(
 
   const order = topoSort(downstreamNodes, downstreamEdges)
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const incomingEdge = buildIncomingEdgeMap(edges)
+  const incomingEdge = buildIncomingEdgeMap(downstreamEdges)
   const outputs = new Map<string, ImageData>()
 
-  // Pre-seed the upstream output so startNodeId can find its input
-  const upstreamId = incomingEdge.get(startNodeId)
-  if (upstreamId && initialInput) {
-    outputs.set(upstreamId, initialInput)
+  // Pre-seed the upstream output so startNodeId can find its input.
+  // Look up from the full edge list — the upstream node isn't in the
+  // downstream set so it won't appear in downstreamEdges.
+  if (initialInput) {
+    const upstreamEdge = edges.find((e) => e.target === startNodeId)
+    if (upstreamEdge) {
+      incomingEdge.set(startNodeId, upstreamEdge.source)
+      outputs.set(upstreamEdge.source, initialInput)
+    }
   }
 
   await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
 }
 
-function getReachableFromInputs(
-  nodes: Array<StudioNode>,
-  edges: Array<StudioEdge>,
-): Set<string> {
-  const adj = new Map<string, Array<string>>()
-  for (const edge of edges) {
-    if (!adj.has(edge.source)) adj.set(edge.source, [])
-    adj.get(edge.source)!.push(edge.target)
-  }
-
-  const visited = new Set<string>()
-  const queue = nodes
-    .filter((n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch)
-    .map((n) => n.id)
-
-  while (queue.length > 0) {
-    const id = queue.shift()!
-    if (visited.has(id)) continue
-    visited.add(id)
-    for (const neighbor of adj.get(id) ?? []) {
-      queue.push(neighbor)
-    }
-  }
-  return visited
-}
-
+/**
+ * Runs every non-batch input node's chain in sequence.
+ * Each input is processed independently end-to-end so that multiple inputs
+ * feeding the same downstream node each get their turn.
+ */
 export async function runWorkflow(
   nodes: Array<StudioNode>,
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
 ): Promise<void> {
-  const reachable = getReachableFromInputs(nodes, edges)
-  const reachableNodes = nodes.filter((n) => reachable.has(n.id))
-  const reachableEdges = edges.filter(
-    (e) => reachable.has(e.source) && reachable.has(e.target),
+  const inputNodes = nodes.filter(
+    (n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch,
   )
-  const order = topoSort(reachableNodes, reachableEdges)
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const incomingEdge = buildIncomingEdgeMap(edges)
-  const outputs = new Map<string, ImageData>()
-
-  await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
+  for (const inputNode of inputNodes) {
+    await runFromNode(inputNode.id, undefined, nodes, edges, callbacks)
+  }
 }
