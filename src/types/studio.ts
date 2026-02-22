@@ -8,6 +8,7 @@ export type NodeKind =
   | 'normalmap'
   | 'displacement'
   | 'aomap'
+  | 'workflowNode'
   | 'outputNode'
 
 export interface InputNodeData {
@@ -97,6 +98,15 @@ export interface OutputNodeData {
   disabled?: boolean
 }
 
+export interface WorkflowNodeData {
+  kind: 'workflowNode'
+  label: string
+  workflowId?: string
+  startNodeId?: string
+  endNodeId?: string
+  disabled?: boolean
+}
+
 export type StudioNodeData = (
   | InputNodeData
   | CropNodeData
@@ -105,6 +115,7 @@ export type StudioNodeData = (
   | NormalmapNodeData
   | DisplacementNodeData
   | AomapNodeData
+  | WorkflowNodeData
   | OutputNodeData
 ) &
   Record<string, unknown>

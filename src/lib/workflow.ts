@@ -11,6 +11,7 @@ import type {
   ResolutionNodeData,
   StudioNode,
   StudioNodeData,
+  WorkflowNodeData,
 } from '@/types/studio'
 
 export const NODE_META: Record<
@@ -51,6 +52,11 @@ export const NODE_META: Record<
     label: 'AO Map',
     icon: 'brightness-down',
     description: 'Generate an ambient occlusion map from a height map',
+  },
+  workflowNode: {
+    label: 'Workflow',
+    icon: 'copy',
+    description: 'Run another workflow inside this one',
   },
   outputNode: {
     label: 'Output',
@@ -133,6 +139,14 @@ function defaultData(kind: NodeKind): StudioNodeData {
         invert: false,
         live: false,
       } satisfies AomapNodeData
+    case 'workflowNode':
+      return {
+        kind: 'workflowNode',
+        label: 'Workflow',
+        workflowId: undefined,
+        startNodeId: undefined,
+        endNodeId: undefined,
+      } satisfies WorkflowNodeData
     case 'outputNode':
       return {
         kind: 'outputNode',
