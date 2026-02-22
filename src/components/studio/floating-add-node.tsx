@@ -1,6 +1,7 @@
 import {
   IconArrowsMoveVertical,
   IconBrightnessDown,
+  IconCopy,
   IconCrop,
   IconDownload,
   IconMaximize,
@@ -28,6 +29,7 @@ const NODES: Array<{ kind: NodeKind; icon: ElementType }> = [
   { kind: 'normalmap', icon: IconVectorTriangle },
   { kind: 'displacement', icon: IconArrowsMoveVertical },
   { kind: 'aomap', icon: IconBrightnessDown },
+  { kind: 'workflowNode', icon: IconCopy },
   { kind: 'outputNode', icon: IconDownload },
 ]
 

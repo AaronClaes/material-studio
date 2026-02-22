@@ -2,7 +2,7 @@ import { getDownstreamIds, runFromNode, runSingleNode } from './execution'
 import { dataUrlToImageData, processInputNode } from './processors'
 import { useDirectoryStore } from './directory-store'
 import { updateWorkflow } from './workflow-crud'
-import type { RunCallbacks } from './execution'
+import type { RunCallbacks, RunOptions } from './execution'
 import type { ExecutionResults, StudioEdge, StudioNode } from '@/types/studio'
 import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
 
@@ -112,6 +112,18 @@ function getWorkflow(
   return get().workflows.find((w) => w.id === workflowId)
 }
 
+function makeRunOptions(get: StoreGet, workflowId: string): RunOptions {
+  return {
+    currentWorkflowId: workflowId,
+    callStack: [workflowId],
+    workflowResolver: (targetWorkflowId) => {
+      const workflow = get().workflows.find((w) => w.id === targetWorkflowId)
+      if (!workflow) return undefined
+      return { nodes: workflow.nodes, edges: workflow.edges }
+    },
+  }
+}
+
 export function buildExecutionActions(set: StoreSet, get: StoreGet) {
   return {
     run: async (workflowId: string) => {
@@ -153,8 +165,16 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       }))
 
       const callbacks = makeCallbacks(set, workflowId)
+      const runOptions = makeRunOptions(get, workflowId)
       for (const inputNode of regularInputs) {
-        await runFromNode(inputNode.id, undefined, nodes, edges, callbacks)
+        await runFromNode(
+          inputNode.id,
+          undefined,
+          nodes,
+          edges,
+          callbacks,
+          runOptions,
+        )
         const downstreamIds = getDownstreamIds(inputNode.id, edges)
         const afterWf = getWorkflow(get, workflowId)
         if (afterWf) {
@@ -211,7 +231,13 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         })),
       }))
 
-      await runSingleNode(nodeId, input, nodes, makeCallbacks(set, workflowId))
+      await runSingleNode(
+        nodeId,
+        input,
+        nodes,
+        makeCallbacks(set, workflowId),
+        makeRunOptions(get, workflowId),
+      )
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
@@ -246,7 +272,14 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           }),
         }))
 
-        await runFromNode(nodeId, undefined, nodes, edges, callbacks)
+        await runFromNode(
+          nodeId,
+          undefined,
+          nodes,
+          edges,
+          callbacks,
+          makeRunOptions(get, workflowId),
+        )
 
         const afterWf = getWorkflow(get, workflowId)
         if (afterWf) {
@@ -291,7 +324,14 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         }),
       }))
 
-      await runFromNode(nodeId, initialInput, nodes, edges, callbacks)
+      await runFromNode(
+        nodeId,
+        initialInput,
+        nodes,
+        edges,
+        callbacks,
+        makeRunOptions(get, workflowId),
+      )
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
@@ -384,6 +424,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
             nodes,
             edges,
             makeCallbacks(set, workflowId),
+            makeRunOptions(get, workflowId),
           )
         } catch (err) {
           console.error(`Batch: skipping ${file.name}:`, err)
