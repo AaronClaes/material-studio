@@ -5,6 +5,7 @@ import {
   IconPlayerPlay,
   IconTrash,
 } from '@tabler/icons-react'
+import { useWorkflowNameEditor } from './use-workflow-name-editor'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useWorkflowNameEditor } from './use-workflow-name-editor'
 
 interface StudioToolbarProps {
   workflowId: string

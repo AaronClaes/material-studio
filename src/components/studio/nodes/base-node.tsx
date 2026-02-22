@@ -10,6 +10,7 @@ import {
   IconPower,
 } from '@tabler/icons-react'
 import { PreviewModal } from '../preview-modal'
+import type { PreviewView } from '../preview-modal'
 import type { NodeStatus } from '@/types/studio'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,7 @@ export function BaseNode({
   nodeId,
 }: BaseNodeProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewView, setPreviewView] = useState<PreviewView>('image')
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
   const showError = nodeStatus === 'error'
@@ -80,10 +82,17 @@ export function BaseNode({
       {
         <PreviewModal
           open={previewOpen}
-          onOpenChange={setPreviewOpen}
+          onOpenChange={(nextOpen) => {
+            setPreviewOpen(nextOpen)
+            if (!nextOpen) {
+              setPreviewView('image')
+            }
+          }}
           title={label}
           dataUrl={resultPreview ?? null}
           nodeId={nodeId}
+          activeView={previewView}
+          onViewChange={setPreviewView}
         />
       }
       <Card
