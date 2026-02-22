@@ -54,7 +54,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
 
   // Shared mode toggle rendered inside both branches
   const modeToggle = (
-    <div className="flex rounded-sm overflow-hidden border text-xs mb-3">
+    <div className="flex overflow-hidden border text-xs mb-3">
       <button
         className={cn(
           'flex-1 py-1 transition-colors',
