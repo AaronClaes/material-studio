@@ -12,7 +12,6 @@ import '@xyflow/react/dist/style.css'
 import { useCallback, useEffect } from 'react'
 import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
-import { NodeInspectorPanel } from './node-inspector-panel'
 import { WorkflowPanel } from './workflow-panel'
 import {
   AomapNode,
@@ -32,7 +31,6 @@ import type {
 } from '@xyflow/react'
 import {
   exportWorkflow,
-  useActiveWorkflowResults,
   useWorkflowStore,
 } from '@/lib/workflow-store'
 import { readDirectoryPreview, useDirectoryStore } from '@/lib/directory-store'
@@ -62,7 +60,6 @@ export function StudioCanvas() {
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const workflows = useWorkflowStore((s) => s.workflows)
 
-  const results = useActiveWorkflowResults()
   const directoryHandles = useDirectoryStore((s) => s.handles)
   const restoreHandles = useDirectoryStore((s) => s.restoreHandles)
 
@@ -85,7 +82,7 @@ export function StudioCanvas() {
     )
 
     restoreHandles(dirNodeIds, (nodeId) =>
-      nodeById[nodeId]?.data.kind === 'outputNode' ? 'readwrite' : 'read',
+      nodeById[nodeId].data.kind === 'outputNode' ? 'readwrite' : 'read',
     ).then(() => {
       const handles = useDirectoryStore.getState().handles
       for (const nodeId of dirNodeIds) {
@@ -107,9 +104,6 @@ export function StudioCanvas() {
   const nodes = activeWorkflow?.nodes ?? []
   const edges = activeWorkflow?.edges ?? []
   const isRunning = activeWorkflow?.isRunning ?? false
-
-  const selectedNode = nodes.find((n) => n.selected) ?? null
-  const selectedResult = selectedNode ? results[selectedNode.id] : undefined
 
   const canRun = nodes.some(
     (n) =>
@@ -170,9 +164,6 @@ export function StudioCanvas() {
             <MiniMap />
           </ReactFlow>
         </div>
-        {selectedNode && !selectedNode.data.disabled && (
-          <NodeInspectorPanel node={selectedNode} result={selectedResult} />
-        )}
       </div>
     </div>
   )

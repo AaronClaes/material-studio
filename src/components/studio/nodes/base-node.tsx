@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import {
   IconBolt,
+  IconDownload,
   IconMaximize,
   IconPhoto,
   IconPlayerPlay,
@@ -61,6 +62,18 @@ export function BaseNode({
   const showWaiting = isRunning && (!nodeStatus || nodeStatus === 'idle')
   const showRunning = nodeStatus === 'running'
   const showError = nodeStatus === 'error'
+
+  const handleDownload = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (!resultPreview) return
+
+    const mime = resultPreview.split(';')[0].split(':')[1] ?? 'image/png'
+    const ext = mime.split('/')[1] ?? 'png'
+    const a = document.createElement('a')
+    a.href = resultPreview
+    a.download = `${label}.${ext}`
+    a.click()
+  }
 
   return (
     <>
@@ -167,20 +180,31 @@ export function BaseNode({
                 <IconPhoto size={24} className="text-muted-foreground/40" />
               </div>
             )}
-            {/* Fullscreen button — only when there's an image to show */}
+            {/* Preview controls — only when there's an image to show */}
             {resultPreview && !disabled && (
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/70 hover:bg-background/90"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setPreviewOpen(true)
-                }}
-              >
-                <IconMaximize size={14} />
-                <span className="sr-only">View fullscreen</span>
-              </Button>
+              <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="bg-background/70 hover:bg-background/90"
+                  onClick={handleDownload}
+                >
+                  <IconDownload size={14} />
+                  <span className="sr-only">Download preview</span>
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="bg-background/70 hover:bg-background/90"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPreviewOpen(true)
+                  }}
+                >
+                  <IconMaximize size={14} />
+                  <span className="sr-only">View fullscreen</span>
+                </Button>
+              </div>
             )}
           </div>
         </div>
