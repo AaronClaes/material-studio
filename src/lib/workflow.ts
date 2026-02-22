@@ -59,10 +59,8 @@ export const NODE_META: Record<
   },
 }
 
-let _idCounter = 100
-
 function nextId() {
-  return `node-${++_idCounter}`
+  return `node-${crypto.randomUUID()}`
 }
 
 function defaultData(kind: NodeKind): StudioNodeData {
