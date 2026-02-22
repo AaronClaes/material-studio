@@ -34,7 +34,7 @@ const supportsDirectoryPicker = 'showDirectoryPicker' in window
 export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
-  const { setNodes, getEdges, updateNodeData } = useReactFlow()
+  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
   const results = useActiveWorkflowResults()
   const isRunning = useActiveWorkflowIsRunning()
   const { runNode } = useActiveWorkflowActions()
@@ -67,7 +67,16 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
       return
 
     const dataUrl = result.outputDataUrl
-    const filename = `${data.filename || 'output'}.${data.format}`
+    const inputNode = getNodes().find((n) => n.data.kind === 'inputNode')
+    const srcFilename =
+      inputNode?.data.kind === 'inputNode'
+        ? inputNode.data.srcFilename
+        : undefined
+    const stem = (data.filename || 'output').replace(
+      '{name}',
+      srcFilename as string,
+    )
+    const filename = `${stem}.${data.format}`
 
     async function save() {
       if (!handle) return
@@ -163,6 +172,10 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
             className="h-7 text-xs"
             placeholder="output"
           />
+          <p className="text-[10px] text-muted-foreground">
+            Use <code className="font-mono">{'{name}'}</code> for source
+            filename
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Format</Label>

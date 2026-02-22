@@ -20,11 +20,12 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    const srcFilename = file.name.replace(/\.[^.]+$/, '')
     const reader = new FileReader()
     reader.onload = (ev) => {
       const src = ev.target?.result as string
       // Update store directly (synchronous) so run() sees the new src immediately
-      patchNodeData(activeWorkflowId, id, { src })
+      patchNodeData(activeWorkflowId, id, { src, srcFilename })
       useWorkflowStore.getState().run(activeWorkflowId)
     }
     reader.readAsDataURL(file)

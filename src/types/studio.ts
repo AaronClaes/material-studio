@@ -14,6 +14,7 @@ export interface InputNodeData {
   kind: 'inputNode'
   label: string
   src: string
+  srcFilename?: string
 }
 
 export interface CropNodeData {
