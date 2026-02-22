@@ -46,8 +46,8 @@ export function FloatingAddNode({ onAddNode }: FloatingAddNodeProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
-            className="gap-2 shadow-lg bg-card/90 backdrop-blur-sm border-border/70 pointer-events-auto"
+            variant="secondary"
+            className="gap-2 shadow-lg pointer-events-auto"
           >
             <IconPlus size={15} />
             Add Node

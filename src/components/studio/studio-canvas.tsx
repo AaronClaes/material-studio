@@ -163,6 +163,7 @@ export function StudioCanvas() {
             defaultEdgeOptions={{ type: 'smoothstep' }}
             fitView
             fitViewOptions={{ padding: 0.4 }}
+            minZoom={0.1}
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
             <Controls />
