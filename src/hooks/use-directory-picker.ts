@@ -4,6 +4,19 @@ declare global {
       mode?: 'read' | 'readwrite'
     }) => Promise<FileSystemDirectoryHandle>
   }
+
+  interface FileSystemHandle {
+    queryPermission: (
+      descriptor?: FileSystemHandlePermissionDescriptor,
+    ) => Promise<PermissionState>
+    requestPermission: (
+      descriptor?: FileSystemHandlePermissionDescriptor,
+    ) => Promise<PermissionState>
+  }
+
+  interface FileSystemHandlePermissionDescriptor {
+    mode?: 'read' | 'readwrite'
+  }
 }
 
 export const supportsDirectoryPicker =

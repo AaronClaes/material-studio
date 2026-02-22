@@ -9,23 +9,12 @@ import {
   useActiveWorkflowResults,
   useWorkflowStore,
 } from '@/lib/workflow-store'
-import { useDirectoryStore } from '@/lib/directory-store'
+import { readDirectoryPreview, useDirectoryStore } from '@/lib/directory-store'
 import {
   supportsDirectoryPicker,
   useDirectoryPicker,
 } from '@/hooks/use-directory-picker'
 import { cn } from '@/lib/utils'
-
-const IMAGE_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-  'bmp',
-  'tiff',
-  'avif',
-])
 
 export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'inputNode') return null
@@ -99,34 +88,10 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       if (!dir) return
       setHandle(id, dir)
 
-      const entries: Array<FileSystemFileHandle> = []
-      // @ts-expect-error - values() is not supported in the type
-      for await (const entry of dir.values()) {
-        if (entry.kind !== 'file') continue
-        const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
-        if (IMAGE_EXTENSIONS.has(ext)) entries.push(entry as FileSystemFileHandle)
-      }
-      entries.sort((a, b) => a.name.localeCompare(b.name))
-
-      let firstSrc = ''
-      let firstStem = ''
-      if (entries.length > 0) {
-        const file = await entries[0].getFile()
-        firstStem = file.name.replace(/\.[^.]+$/, '')
-        firstSrc = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = (e) => resolve(e.target!.result as string)
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
-      }
-
+      const preview = await readDirectoryPreview(dir)
       patchNodeData(activeWorkflowId, id, {
-        folderName: dir.name,
-        fileCount: entries.length,
+        ...preview,
         processedCount: 0,
-        src: firstSrc,
-        srcFilename: firstStem,
       })
     }
 
@@ -168,8 +133,13 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
                   </>
                 ) : (
                   <>
-                    <IconFolder size={13} className="shrink-0 text-muted-foreground" />
-                    <span className="text-muted-foreground">Choose folder…</span>
+                    <IconFolder
+                      size={13}
+                      className="shrink-0 text-muted-foreground"
+                    />
+                    <span className="text-muted-foreground">
+                      Choose folder…
+                    </span>
                   </>
                 )}
               </Button>

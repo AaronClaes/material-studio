@@ -9,7 +9,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
 import { NodeInspectorPanel } from './node-inspector-panel'
@@ -35,7 +35,7 @@ import {
   useActiveWorkflowResults,
   useWorkflowStore,
 } from '@/lib/workflow-store'
-import { useDirectoryStore } from '@/lib/directory-store'
+import { readDirectoryPreview, useDirectoryStore } from '@/lib/directory-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -64,6 +64,45 @@ export function StudioCanvas() {
 
   const results = useActiveWorkflowResults()
   const directoryHandles = useDirectoryStore((s) => s.handles)
+  const restoreHandles = useDirectoryStore((s) => s.restoreHandles)
+
+  const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
+
+  useEffect(() => {
+    const allNodes = workflows.flatMap((w) => w.nodes)
+    const dirNodeIds = allNodes
+      .filter(
+        (n) =>
+          (n.data.kind === 'inputNode' && n.data.batch) ||
+          n.data.kind === 'outputNode',
+      )
+      .map((n) => n.id)
+    if (dirNodeIds.length === 0) return
+
+    const nodeById = Object.fromEntries(allNodes.map((n) => [n.id, n]))
+    const workflowByNode = Object.fromEntries(
+      workflows.flatMap((w) => w.nodes.map((n) => [n.id, w.id])),
+    )
+
+    restoreHandles(dirNodeIds, (nodeId) =>
+      nodeById[nodeId]?.data.kind === 'outputNode' ? 'readwrite' : 'read',
+    ).then(() => {
+      const handles = useDirectoryStore.getState().handles
+      for (const nodeId of dirNodeIds) {
+        const node = nodeById[nodeId]
+        if (node.data.kind !== 'inputNode') continue
+        const handle = handles[nodeId]
+        if (!handle) continue
+        readDirectoryPreview(handle).then((preview) => {
+          patchNodeData(workflowByNode[nodeId], nodeId, {
+            ...preview,
+            processedCount: 0,
+          })
+        })
+      }
+    })
+    // Only restore once on mount
+  }, [])
 
   const nodes = activeWorkflow?.nodes ?? []
   const edges = activeWorkflow?.edges ?? []
