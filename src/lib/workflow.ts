@@ -1,6 +1,7 @@
 import type { Edge } from '@xyflow/react'
 import type {
   AomapNodeData,
+  BatchInputNodeData,
   ColorNodeData,
   CropNodeData,
   DisplacementNodeData,
@@ -21,6 +22,11 @@ export const NODE_META: Record<
     label: 'Input',
     icon: 'photo',
     description: 'Load an image file',
+  },
+  batchInputNode: {
+    label: 'Batch Input',
+    icon: 'folder-open',
+    description: 'Process all images in a folder',
   },
   crop: {
     label: 'Crop',
@@ -71,6 +77,14 @@ function defaultData(kind: NodeKind): StudioNodeData {
         label: 'Input',
         src: '',
       } satisfies InputNodeData
+    case 'batchInputNode':
+      return {
+        kind: 'batchInputNode',
+        label: 'Batch Input',
+        src: '',
+        fileCount: 0,
+        processedCount: 0,
+      } satisfies BatchInputNodeData
     case 'crop':
       return {
         kind: 'crop',

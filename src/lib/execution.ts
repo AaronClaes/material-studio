@@ -74,7 +74,7 @@ async function processNode(
   data: StudioNodeData,
   input: ImageData | undefined,
 ): Promise<NodeProcessResult> {
-  if (data.kind === 'inputNode') {
+  if (data.kind === 'inputNode' || data.kind === 'batchInputNode') {
     if (!data.src) throw new Error('No image selected')
     const imageData = await processInputNode(data.src)
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }

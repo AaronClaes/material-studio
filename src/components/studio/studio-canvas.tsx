@@ -15,6 +15,7 @@ import { FloatingAddNode } from './floating-add-node'
 import { NodeInspectorPanel } from './node-inspector-panel'
 import { WorkflowPanel } from './workflow-panel'
 import { InputNode } from './nodes/input-node'
+import { BatchInputNode } from './nodes/batch-input-node'
 import { OutputNode } from './nodes/output-node'
 import { CropNode } from './nodes/crop-node'
 import { ResolutionNode } from './nodes/resolution-node'
@@ -36,6 +37,7 @@ import {
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
+  batchInputNode: BatchInputNode,
   outputNode: OutputNode,
   crop: CropNode,
   resolution: ResolutionNode,

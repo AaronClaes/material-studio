@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { IconDownload, IconFolder, IconFolderOpen } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
@@ -34,7 +33,7 @@ const supportsDirectoryPicker = 'showDirectoryPicker' in window
 export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'outputNode') return null
 
-  const { setNodes, getNodes, getEdges, updateNodeData } = useReactFlow()
+  const { setNodes, getEdges, updateNodeData } = useReactFlow()
   const results = useActiveWorkflowResults()
   const isRunning = useActiveWorkflowIsRunning()
   const { runNode } = useActiveWorkflowActions()
@@ -51,45 +50,6 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
   function toggleDisabled() {
     updateNodeData(id, { disabled: !data.disabled })
   }
-
-  // Auto-save to selected folder whenever status transitions to 'done'
-  const prevStatusRef = useRef<string | undefined>(undefined)
-  useEffect(() => {
-    const prev = prevStatusRef.current
-    prevStatusRef.current = result?.status
-
-    if (
-      result?.status !== 'done' ||
-      prev === 'done' ||
-      !result.outputDataUrl ||
-      !handle
-    )
-      return
-
-    const dataUrl = result.outputDataUrl
-    const inputNode = getNodes().find((n) => n.data.kind === 'inputNode')
-    const srcFilename =
-      inputNode?.data.kind === 'inputNode'
-        ? inputNode.data.srcFilename
-        : undefined
-    const stem = (data.filename || 'output').replace(
-      '{name}',
-      srcFilename as string,
-    )
-    const filename = `${stem}.${data.format}`
-
-    async function save() {
-      if (!handle) return
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
-      const fileHandle = await handle.getFileHandle(filename, { create: true })
-      const writable = await fileHandle.createWritable()
-      await writable.write(blob)
-      await writable.close()
-    }
-
-    save().catch(console.error)
-  }, [result?.status, result?.outputDataUrl, handle])
 
   async function pickFolder() {
     try {
