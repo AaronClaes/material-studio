@@ -3,7 +3,6 @@ import {
   IconBrightnessDown,
   IconCrop,
   IconDownload,
-  IconFolderOpen,
   IconMaximize,
   IconPalette,
   IconPhoto,
@@ -23,7 +22,6 @@ import { NODE_META, createNode } from '@/lib/workflow'
 
 const NODES: Array<{ kind: NodeKind; icon: ElementType }> = [
   { kind: 'inputNode', icon: IconPhoto },
-  { kind: 'batchInputNode', icon: IconFolderOpen },
   { kind: 'crop', icon: IconCrop },
   { kind: 'resolution', icon: IconMaximize },
   { kind: 'color', icon: IconPalette },

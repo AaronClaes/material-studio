@@ -16,7 +16,6 @@ import { NodeInspectorPanel } from './node-inspector-panel'
 import { WorkflowPanel } from './workflow-panel'
 import {
   AomapNode,
-  BatchInputNode,
   ColorNode,
   CropNode,
   DisplacementNode,
@@ -36,10 +35,10 @@ import {
   useActiveWorkflowResults,
   useWorkflowStore,
 } from '@/lib/workflow-store'
+import { useDirectoryStore } from '@/lib/directory-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
-  batchInputNode: BatchInputNode,
   outputNode: OutputNode,
   crop: CropNode,
   resolution: ResolutionNode,
@@ -64,6 +63,7 @@ export function StudioCanvas() {
   const workflows = useWorkflowStore((s) => s.workflows)
 
   const results = useActiveWorkflowResults()
+  const directoryHandles = useDirectoryStore((s) => s.handles)
 
   const nodes = activeWorkflow?.nodes ?? []
   const edges = activeWorkflow?.edges ?? []
@@ -72,7 +72,11 @@ export function StudioCanvas() {
   const selectedNode = nodes.find((n) => n.selected) ?? null
   const selectedResult = selectedNode ? results[selectedNode.id] : undefined
 
-  const canRun = nodes.some((n) => n.type === 'inputNode' && n.data.src)
+  const canRun = nodes.some(
+    (n) =>
+      n.data.kind === 'inputNode' &&
+      (n.data.batch ? !!directoryHandles[n.id] : !!n.data.src),
+  )
 
   const handleNodesChange = useCallback(
     (changes: Array<NodeChange>) => onNodesChange(activeWorkflowId, changes),

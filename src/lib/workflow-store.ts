@@ -32,7 +32,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           id: w.id,
           name: w.name,
           nodes: w.nodes.map((n) =>
-            n.data.kind === 'inputNode' || n.data.kind === 'batchInputNode'
+            n.data.kind === 'inputNode'
               ? { ...n, data: { ...n.data, src: '', processedCount: 0 } }
               : n,
           ),

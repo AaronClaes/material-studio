@@ -74,7 +74,7 @@ async function processNode(
   data: StudioNodeData,
   input: ImageData | undefined,
 ): Promise<NodeProcessResult> {
-  if (data.kind === 'inputNode' || data.kind === 'batchInputNode') {
+  if (data.kind === 'inputNode') {
     if (!data.src) throw new Error('No image selected')
     const imageData = await processInputNode(data.src)
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
@@ -291,7 +291,7 @@ function getReachableFromInputs(
 
   const visited = new Set<string>()
   const queue = nodes
-    .filter((n) => n.data.kind === 'inputNode' && n.data.src)
+    .filter((n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch)
     .map((n) => n.id)
 
   while (queue.length > 0) {

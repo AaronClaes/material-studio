@@ -2,7 +2,6 @@ import type { Edge, Node } from '@xyflow/react'
 
 export type NodeKind =
   | 'inputNode'
-  | 'batchInputNode'
   | 'crop'
   | 'resolution'
   | 'color'
@@ -16,16 +15,10 @@ export interface InputNodeData {
   label: string
   src: string
   srcFilename?: string
-}
-
-export interface BatchInputNodeData {
-  kind: 'batchInputNode'
-  label: string
-  src: string
-  srcFilename?: string
+  batch?: boolean
   folderName?: string
-  fileCount: number
-  processedCount: number
+  fileCount?: number
+  processedCount?: number
 }
 
 export interface CropNodeData {
@@ -106,7 +99,6 @@ export interface OutputNodeData {
 
 export type StudioNodeData = (
   | InputNodeData
-  | BatchInputNodeData
   | CropNodeData
   | ResolutionNodeData
   | ColorNodeData

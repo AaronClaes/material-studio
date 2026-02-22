@@ -1,6 +1,5 @@
 export { AomapNode } from './aomap-node'
 export { BaseNode } from './base-node'
-export { BatchInputNode } from './batch-input-node'
 export { ColorNode } from './color-node'
 export { CropNode } from './crop-node'
 export { DisplacementNode } from './displacement-node'

@@ -25,12 +25,9 @@ async function saveOutputNodes(
   if (stemOverride !== undefined) {
     stem = stemOverride
   } else {
-    const inputNode = nodes.find(
-      (n) => n.data.kind === 'inputNode' || n.data.kind === 'batchInputNode',
-    )
+    const inputNode = nodes.find((n) => n.data.kind === 'inputNode')
     stem =
-      inputNode?.data.kind === 'inputNode' ||
-      inputNode?.data.kind === 'batchInputNode'
+      inputNode?.data.kind === 'inputNode'
         ? (inputNode.data.srcFilename ?? '')
         : ''
   }
@@ -119,6 +116,21 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       if (!wf || wf.isRunning) return
 
       const { nodes, edges } = wf
+
+      const batchNodeIds = nodes
+        .filter((n) => n.data.kind === 'inputNode' && n.data.batch)
+        .map((n) => n.id)
+        .filter((id) => useDirectoryStore.getState().handles[id])
+
+      for (const nodeId of batchNodeIds) {
+        await get().runBatch(workflowId, nodeId)
+      }
+
+      const hasRegularInputs = nodes.some(
+        (n) => n.data.kind === 'inputNode' && !n.data.batch && n.data.src,
+      )
+      if (!hasRegularInputs) return
+
       const allIds = new Set(nodes.map((n) => n.id))
       const idle: ExecutionResults = {}
       for (const node of nodes) {
