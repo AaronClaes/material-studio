@@ -60,6 +60,17 @@ export interface RunCallbacks {
   onNodeSkipped: (id: string, dataUrl: string) => void
 }
 
+interface ResolvedWorkflow {
+  nodes: Array<StudioNode>
+  edges: Array<StudioEdge>
+}
+
+export interface RunOptions {
+  currentWorkflowId?: string
+  callStack?: Array<string>
+  workflowResolver?: (workflowId: string) => ResolvedWorkflow | undefined
+}
+
 /**
  * Result of processing a single node.
  * `dataUrl` is only set for outputNode; all others expose `imageData` for
@@ -70,14 +81,146 @@ type NodeProcessResult =
   | { kind: 'image'; imageData: ImageData; dataUrl: string }
   | { kind: 'output'; imageData: ImageData; dataUrl: string }
 
+const NOOP_CALLBACKS: RunCallbacks = {
+  onNodeStart: () => {},
+  onNodeDone: () => {},
+  onNodeError: () => {},
+  onNodeSkipped: () => {},
+}
+
+function getUpstreamIds(
+  endNodeId: string,
+  edges: Array<StudioEdge>,
+): Set<string> {
+  const reverseAdj = new Map<string, Array<string>>()
+  for (const edge of edges) {
+    const list = reverseAdj.get(edge.target) ?? []
+    list.push(edge.source)
+    reverseAdj.set(edge.target, list)
+  }
+
+  const visited = new Set<string>()
+  const queue = [endNodeId]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (visited.has(id)) continue
+    visited.add(id)
+    for (const upstreamId of reverseAdj.get(id) ?? []) {
+      queue.push(upstreamId)
+    }
+  }
+
+  return visited
+}
+
+function getIdsBetweenNodes(
+  startNodeId: string,
+  endNodeId: string,
+  edges: Array<StudioEdge>,
+): Set<string> {
+  const downstreamIds = getDownstreamIds(startNodeId, edges)
+  if (!downstreamIds.has(endNodeId)) {
+    throw new Error('End node must be downstream from the selected start node')
+  }
+
+  const upstreamOfEndIds = getUpstreamIds(endNodeId, edges)
+  const betweenIds = new Set<string>()
+  for (const id of downstreamIds) {
+    if (upstreamOfEndIds.has(id)) betweenIds.add(id)
+  }
+  return betweenIds
+}
+
+function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const edge of edges) {
+    // First edge wins — prevents non-deterministic behaviour when multiple
+    // edges target the same node (fan-in).
+    if (!map.has(edge.target)) map.set(edge.target, edge.source)
+  }
+  return map
+}
+
+function seedInitialInput(
+  startNodeId: string,
+  initialInput: ImageData | undefined,
+  edges: Array<StudioEdge>,
+  incomingEdge: Map<string, string>,
+  outputs: Map<string, ImageData>,
+) {
+  if (!initialInput) return
+
+  const upstreamEdge = edges.find((e) => e.target === startNodeId)
+  if (upstreamEdge) {
+    incomingEdge.set(startNodeId, upstreamEdge.source)
+    outputs.set(upstreamEdge.source, initialInput)
+    return
+  }
+
+  const seedId = `__initial-input__${startNodeId}`
+  incomingEdge.set(startNodeId, seedId)
+  outputs.set(seedId, initialInput)
+}
+
+async function runGraphSlice(options: {
+  startNodeId: string
+  endNodeId?: string
+  initialInput: ImageData | undefined
+  nodes: Array<StudioNode>
+  edges: Array<StudioEdge>
+  callbacks: RunCallbacks
+  runOptions?: RunOptions
+}): Promise<Map<string, ImageData>> {
+  const idsToRun = options.endNodeId
+    ? getIdsBetweenNodes(options.startNodeId, options.endNodeId, options.edges)
+    : getDownstreamIds(options.startNodeId, options.edges)
+
+  const nodesToRun = options.nodes.filter((node) => idsToRun.has(node.id))
+  const edgesToRun = options.edges.filter(
+    (edge) => idsToRun.has(edge.source) && idsToRun.has(edge.target),
+  )
+
+  const order = topoSort(nodesToRun, edgesToRun)
+  const nodeMap = new Map(options.nodes.map((node) => [node.id, node]))
+  const incomingEdge = buildIncomingEdgeMap(edgesToRun)
+  const outputs = new Map<string, ImageData>()
+
+  seedInitialInput(
+    options.startNodeId,
+    options.initialInput,
+    options.edges,
+    incomingEdge,
+    outputs,
+  )
+
+  await executeOrder(
+    order,
+    nodeMap,
+    incomingEdge,
+    outputs,
+    options.callbacks,
+    options.runOptions,
+  )
+
+  return outputs
+}
+
 async function processNode(
   data: StudioNodeData,
   input: ImageData | undefined,
+  runOptions?: RunOptions,
 ): Promise<NodeProcessResult> {
   if (data.kind === 'inputNode') {
-    if (!data.src) throw new Error('No image selected')
-    const imageData = await processInputNode(data.src)
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    if (data.src) {
+      const imageData = await processInputNode(data.src)
+      return {
+        kind: 'image',
+        imageData,
+        dataUrl: imageDataToDataUrl(imageData),
+      }
+    }
+    if (!input) throw new Error('No image selected')
+    return { kind: 'image', imageData: input, dataUrl: imageDataToDataUrl(input) }
   }
 
   if (!input) throw new Error('No upstream input')
@@ -146,6 +289,45 @@ async function processNode(
     return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
   }
 
+  if (data.kind === 'workflowNode') {
+    if (!runOptions?.workflowResolver) {
+      throw new Error('Workflow resolver unavailable')
+    }
+    if (!data.workflowId) throw new Error('Select a workflow')
+    if (!data.startNodeId) throw new Error('Select a start node')
+    if (!data.endNodeId) throw new Error('Select an end node')
+
+    const stack =
+      runOptions.callStack ??
+      (runOptions.currentWorkflowId ? [runOptions.currentWorkflowId] : [])
+    if (stack.includes(data.workflowId)) {
+      throw new Error('Recursive nested workflow reference detected')
+    }
+
+    const nestedWorkflow = runOptions.workflowResolver(data.workflowId)
+    if (!nestedWorkflow) throw new Error('Selected workflow no longer exists')
+
+    const nestedOutputs = await runGraphSlice({
+      startNodeId: data.startNodeId,
+      endNodeId: data.endNodeId,
+      initialInput: input,
+      nodes: nestedWorkflow.nodes,
+      edges: nestedWorkflow.edges,
+      callbacks: NOOP_CALLBACKS,
+      runOptions: {
+        ...runOptions,
+        currentWorkflowId: data.workflowId,
+        callStack: [...stack, data.workflowId],
+      },
+    })
+
+    const output = nestedOutputs.get(data.endNodeId)
+    if (!output) {
+      throw new Error('Selected end node did not produce output')
+    }
+    return { kind: 'image', imageData: output, dataUrl: imageDataToDataUrl(output) }
+  }
+
   // outputNode
   const result = await processOutputNode(input, { format: data.format })
   return {
@@ -166,6 +348,7 @@ async function executeOrder(
   incomingEdge: Map<string, string>,
   outputs: Map<string, ImageData>,
   callbacks: RunCallbacks,
+  runOptions?: RunOptions,
 ): Promise<void> {
   const failed = new Set<string>()
 
@@ -196,7 +379,7 @@ async function executeOrder(
 
     try {
       const input = upstreamId ? outputs.get(upstreamId) : undefined
-      const result = await processNode(node.data, input)
+      const result = await processNode(node.data, input, runOptions)
       outputs.set(id, result.imageData)
       callbacks.onNodeDone(id, result.dataUrl)
     } catch (err) {
@@ -209,21 +392,12 @@ async function executeOrder(
   }
 }
 
-function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
-  const map = new Map<string, string>()
-  for (const edge of edges) {
-    // First edge wins — prevents non-deterministic behaviour when multiple
-    // edges target the same node (fan-in).
-    if (!map.has(edge.target)) map.set(edge.target, edge.source)
-  }
-  return map
-}
-
 export async function runSingleNode(
   nodeId: string,
   input: ImageData,
   nodes: Array<StudioNode>,
   callbacks: RunCallbacks,
+  runOptions?: RunOptions,
 ): Promise<void> {
   const node = nodes.find((n) => n.id === nodeId)
   if (!node) return
@@ -231,7 +405,7 @@ export async function runSingleNode(
   callbacks.onNodeStart(nodeId)
 
   try {
-    const result = await processNode(node.data, input)
+    const result = await processNode(node.data, input, runOptions)
     callbacks.onNodeDone(nodeId, result.dataUrl)
   } catch (err) {
     callbacks.onNodeError(
@@ -270,30 +444,16 @@ export async function runFromNode(
   nodes: Array<StudioNode>,
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
+  runOptions?: RunOptions,
 ): Promise<void> {
-  const downstreamIds = getDownstreamIds(startNodeId, edges)
-  const downstreamNodes = nodes.filter((n) => downstreamIds.has(n.id))
-  const downstreamEdges = edges.filter(
-    (e) => downstreamIds.has(e.source) && downstreamIds.has(e.target),
-  )
-
-  const order = topoSort(downstreamNodes, downstreamEdges)
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const incomingEdge = buildIncomingEdgeMap(downstreamEdges)
-  const outputs = new Map<string, ImageData>()
-
-  // Pre-seed the upstream output so startNodeId can find its input.
-  // Look up from the full edge list — the upstream node isn't in the
-  // downstream set so it won't appear in downstreamEdges.
-  if (initialInput) {
-    const upstreamEdge = edges.find((e) => e.target === startNodeId)
-    if (upstreamEdge) {
-      incomingEdge.set(startNodeId, upstreamEdge.source)
-      outputs.set(upstreamEdge.source, initialInput)
-    }
-  }
-
-  await executeOrder(order, nodeMap, incomingEdge, outputs, callbacks)
+  await runGraphSlice({
+    startNodeId,
+    initialInput,
+    nodes,
+    edges,
+    callbacks,
+    runOptions,
+  })
 }
 
 /**
@@ -305,11 +465,12 @@ export async function runWorkflow(
   nodes: Array<StudioNode>,
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
+  runOptions?: RunOptions,
 ): Promise<void> {
   const inputNodes = nodes.filter(
     (n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch,
   )
   for (const inputNode of inputNodes) {
-    await runFromNode(inputNode.id, undefined, nodes, edges, callbacks)
+    await runFromNode(inputNode.id, undefined, nodes, edges, callbacks, runOptions)
   }
 }

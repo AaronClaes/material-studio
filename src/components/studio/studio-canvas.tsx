@@ -22,6 +22,7 @@ import {
   NormalmapNode,
   OutputNode,
   ResolutionNode,
+  WorkflowNode,
 } from './nodes'
 import type {
   Connection,
@@ -44,6 +45,7 @@ const nodeTypes: NodeTypes = {
   normalmap: NormalmapNode,
   displacement: DisplacementNode,
   aomap: AomapNode,
+  workflowNode: WorkflowNode,
 }
 
 export function StudioCanvas() {
