@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { IconCopy, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react'
 import type { WorkflowDef } from '@/lib/workflow-store'
 import { useWorkflowStore } from '@/lib/workflow-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { useWorkflowNameEditor } from './use-workflow-name-editor'
 
 export function WorkflowPanel() {
   const workflows = useWorkflowStore((s) => s.workflows)
@@ -17,28 +18,16 @@ export function WorkflowPanel() {
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const importWorkflow = useWorkflowStore((s) => s.importWorkflow)
 
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  function startEdit(id: string, currentName: string) {
-    setEditingId(id)
-    setEditValue(currentName)
-    setTimeout(() => inputRef.current?.select(), 0)
-  }
-
-  function commitEdit() {
-    if (editingId && editValue.trim()) {
-      renameWorkflow(editingId, editValue.trim())
-    }
-    setEditingId(null)
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') commitEdit()
-    if (e.key === 'Escape') setEditingId(null)
-  }
+  const {
+    editingId,
+    editValue,
+    setEditValue,
+    inputRef,
+    startEdit,
+    commitEdit,
+    handleKeyDown,
+  } = useWorkflowNameEditor({ onCommitName: renameWorkflow })
 
   function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

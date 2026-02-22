@@ -58,6 +58,7 @@ export function StudioCanvas() {
   const run = useWorkflowStore((s) => s.run)
   const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
+  const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
   const workflows = useWorkflowStore((s) => s.workflows)
 
   const directoryHandles = useDirectoryStore((s) => s.handles)
@@ -129,7 +130,9 @@ export function StudioCanvas() {
   return (
     <div className="flex flex-col h-screen w-full">
       <StudioToolbar
+        workflowId={activeWorkflowId}
         workflowName={activeWorkflow?.name ?? ''}
+        onRenameWorkflow={renameWorkflow}
         onRunWorkflow={() => run(activeWorkflowId)}
         isRunning={isRunning}
         canRun={canRun}
