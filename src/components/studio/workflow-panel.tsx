@@ -2,11 +2,12 @@
 
 import { useRef } from 'react'
 import { IconCopy, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react'
+import { useWorkflowNameEditor } from './use-workflow-name-editor'
+import { ConfirmRemoveWorkflow } from './confirm-remove-workflow'
 import type { WorkflowDef } from '@/lib/workflow-store'
 import { useWorkflowStore } from '@/lib/workflow-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useWorkflowNameEditor } from './use-workflow-name-editor'
 
 export function WorkflowPanel() {
   const workflows = useWorkflowStore((s) => s.workflows)
@@ -54,72 +55,72 @@ export function WorkflowPanel() {
           const isEditing = editingId === wf.id
 
           return (
-            <div
-              key={wf.id}
-              className={cn(
-                'group flex items-center border-l-3  gap-1 px-3 py-2  cursor-pointer relative',
-                isActive
-                  ? 'border-primary bg-accent/60'
-                  : 'border-transparent hover:bg-accent/30',
-              )}
-              onClick={() => {
-                if (!isEditing) setActiveWorkflowId(wf.id)
-              }}
-            >
-              {isEditing ? (
-                <input
-                  ref={inputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={commitEdit}
-                  onKeyDown={handleKeyDown}
-                  className="flex-1 min-w-0 text-sm bg-transparent outline-none border-b border-primary"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span
-                  className="flex-1 min-w-0 text-sm truncate"
-                  onDoubleClick={(e) => {
-                    e.stopPropagation()
-                    startEdit(wf.id, wf.name)
-                  }}
-                >
-                  {wf.name}
-                </span>
-              )}
-
-              <Button
-                size="xs"
-                variant="ghost"
-                className="shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  duplicateWorkflow(wf.id)
+            <ConfirmRemoveWorkflow onConfirm={() => deleteWorkflow(wf.id)}>
+              <div
+                key={wf.id}
+                className={cn(
+                  'group flex items-center border-l-3  gap-1 px-3 py-2  cursor-pointer relative',
+                  isActive
+                    ? 'border-primary bg-accent/60'
+                    : 'border-transparent hover:bg-accent/30',
+                )}
+                onClick={() => {
+                  if (!isEditing) setActiveWorkflowId(wf.id)
                 }}
-                title="Duplicate workflow"
               >
-                <IconCopy size={12} />
-              </Button>
+                {isEditing ? (
+                  <input
+                    ref={inputRef}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={commitEdit}
+                    onKeyDown={handleKeyDown}
+                    className="flex-1 min-w-0 text-sm bg-transparent outline-none border-b border-primary"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="flex-1 min-w-0 text-sm truncate"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      startEdit(wf.id, wf.name)
+                    }}
+                  >
+                    {wf.name}
+                  </span>
+                )}
 
-              {workflows.length > 1 && (
                 <Button
                   size="xs"
                   variant="ghost"
-                  className={cn(
-                    'shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-destructive',
-                    workflows.length <= 1 && 'invisible',
-                  )}
-                  disabled={workflows.length <= 1}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation()
-                    deleteWorkflow(wf.id)
+                    duplicateWorkflow(wf.id)
                   }}
-                  title="Delete workflow"
+                  title="Duplicate workflow"
                 >
-                  <IconTrash size={12} />
+                  <IconCopy size={12} />
                 </Button>
-              )}
-            </div>
+
+                {workflows.length > 1 && (
+                  <ConfirmRemoveWorkflow.Trigger>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className={cn(
+                        'shrink-0 opacity-0 group-hover:opacity-100 h-5 w-5 p-0 text-muted-foreground hover:text-destructive',
+                        workflows.length <= 1 && 'invisible',
+                      )}
+                      disabled={workflows.length <= 1}
+                      title="Delete workflow"
+                    >
+                      <IconTrash size={12} />
+                    </Button>
+                  </ConfirmRemoveWorkflow.Trigger>
+                )}
+              </div>
+            </ConfirmRemoveWorkflow>
           )
         })}
       </div>

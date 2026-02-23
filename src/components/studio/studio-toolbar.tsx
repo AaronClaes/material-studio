@@ -6,6 +6,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { useWorkflowNameEditor } from './use-workflow-name-editor'
+import { ConfirmRemoveWorkflow } from './confirm-remove-workflow'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -96,38 +97,41 @@ export function StudioToolbar({
           <IconPlayerPlay size={14} />
           {isRunning ? 'Running…' : 'Run Workflow'}
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon-sm" variant="outline" className="px-2">
-              <IconDotsVertical size={14} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-auto">
-            <DropdownMenuItem
-              onClick={onDuplicateWorkflow}
-              className="text-nowrap"
-            >
-              <IconCopy size={14} />
-              Duplicate
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={onExportWorkflow}
-              className="text-nowrap"
-            >
-              <IconFileExport size={14} />
-              Export
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={onDeleteWorkflow}
-              disabled={!canDeleteWorkflow}
-              variant="destructive"
-            >
-              <IconTrash size={14} />
-              Remove
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ConfirmRemoveWorkflow onConfirm={onDeleteWorkflow}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon-sm" variant="outline" className="px-2">
+                <IconDotsVertical size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-auto">
+              <DropdownMenuItem
+                onClick={onDuplicateWorkflow}
+                className="text-nowrap"
+              >
+                <IconCopy size={14} />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onExportWorkflow}
+                className="text-nowrap"
+              >
+                <IconFileExport size={14} />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <ConfirmRemoveWorkflow.Trigger>
+                <DropdownMenuItem
+                  disabled={!canDeleteWorkflow}
+                  variant="destructive"
+                >
+                  <IconTrash size={14} />
+                  Remove
+                </DropdownMenuItem>
+              </ConfirmRemoveWorkflow.Trigger>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ConfirmRemoveWorkflow>
       </div>
     </div>
   )
