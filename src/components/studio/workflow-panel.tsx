@@ -54,9 +54,8 @@ export function WorkflowPanel() {
           const isEditing = editingId === wf.id
 
           return (
-            <ConfirmRemoveWorkflow workflowId={wf.id}>
+            <ConfirmRemoveWorkflow key={wf.id} workflowId={wf.id}>
               <div
-                key={wf.id}
                 className={cn(
                   'group flex items-center border-l-3  gap-1 px-3 py-2  cursor-pointer relative',
                   isActive

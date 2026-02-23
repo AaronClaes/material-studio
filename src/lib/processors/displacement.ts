@@ -1,6 +1,12 @@
-import { applyBlurSharp, toGrayscaleHeights } from './utils'
+import {
+  getGPUDevice,
+  runBlurSharp,
+  runDisplacement,
+  runGrayscale,
+  runInvert,
+} from '../gpu'
 
-export function processDisplacementNode(
+export async function processDisplacementNode(
   input: ImageData,
   params: {
     contrast: number
@@ -9,31 +15,30 @@ export function processDisplacementNode(
   },
 ): Promise<ImageData> {
   const { width, height } = input
+  const device = await getGPUDevice()
 
-  let heights = toGrayscaleHeights(input)
+  const { heightsBuffer, inputBuffer } = runGrayscale(device, input)
+  inputBuffer.destroy()
+
+  let current = heightsBuffer
 
   if (params.invert) {
-    for (let i = 0; i < heights.length; i++) {
-      heights[i] = 1 - heights[i]
-    }
+    const inverted = runInvert(device, current, width * height)
+    current.destroy()
+    current = inverted
   }
 
   if (params.blurSharp !== 0) {
-    heights = applyBlurSharp(heights, width, height, params.blurSharp)
-  }
-
-  const out = new Uint8ClampedArray(width * height * 4)
-  for (let i = 0; i < width * height; i++) {
-    const h = Math.max(
-      0,
-      Math.min(1, 0.5 + (heights[i] - 0.5) * (1 + params.contrast)),
+    const blurred = runBlurSharp(
+      device,
+      current,
+      width,
+      height,
+      params.blurSharp,
     )
-    const v = Math.round(h * 255)
-    out[i * 4] = v
-    out[i * 4 + 1] = v
-    out[i * 4 + 2] = v
-    out[i * 4 + 3] = 255
+    current.destroy()
+    current = blurred
   }
 
-  return Promise.resolve(new ImageData(out, width, height))
+  return runDisplacement(device, current, width, height, params.contrast)
 }

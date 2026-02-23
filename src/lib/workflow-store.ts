@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   buildCrudActions,
   createWorkflow,
@@ -26,6 +26,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     }),
     {
       name: 'material-studio-workflows',
+      storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         activeWorkflowId: s.activeWorkflowId,
         workflows: s.workflows.map((w) => ({
