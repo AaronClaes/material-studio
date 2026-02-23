@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { IconFolder, IconFolderOpen, IconPhoto } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
@@ -30,6 +31,14 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
 
   const isBatch = !!data.batch
   const result = results[id]
+
+  // Regenerate preview when handle is restored but src was cleared on persist
+  useEffect(() => {
+    if (!handle || data.src) return
+    readDirectoryPreview(handle).then((preview) => {
+      patchNodeData(activeWorkflowId, id, { ...preview, processedCount: 0 })
+    })
+  }, [handle])
 
   function switchMode(toBatch: boolean) {
     if (toBatch === isBatch) return

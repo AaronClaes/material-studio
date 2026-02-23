@@ -149,11 +149,14 @@ export const useDirectoryStore = create<DirectoryStore>((set) => ({
 
       for (const nodeId of nodeIds) {
         const handle = stored[nodeId]
-        if (!handle) continue
-        const mode = getMode(nodeId)
-        const ok = await verifyPermission(handle, mode)
-        if (ok) restored[nodeId] = handle
-        else removeHandle(nodeId).catch(() => {})
+        try {
+          const mode = getMode(nodeId)
+          const ok = await verifyPermission(handle, mode)
+          if (ok) restored[nodeId] = handle
+        } catch {
+          // Permission check failed (e.g. no user activation) — keep
+          // the handle in IndexedDB so it can be verified on next try.
+        }
       }
 
       // Clean up handles for nodes that no longer exist
