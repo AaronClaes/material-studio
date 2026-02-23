@@ -30,10 +30,7 @@ import type {
   NodeChange,
   NodeTypes,
 } from '@xyflow/react'
-import {
-  exportWorkflow,
-  useWorkflowStore,
-} from '@/lib/workflow-store'
+import { exportWorkflow, useWorkflowStore } from '@/lib/workflow-store'
 import { readDirectoryPreview, useDirectoryStore } from '@/lib/directory-store'
 
 const nodeTypes: NodeTypes = {
@@ -58,7 +55,6 @@ export function StudioCanvas() {
   const onConnect = useWorkflowStore((s) => s.onConnect)
   const addNode = useWorkflowStore((s) => s.addNode)
   const run = useWorkflowStore((s) => s.run)
-  const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
   const workflows = useWorkflowStore((s) => s.workflows)
@@ -142,7 +138,6 @@ export function StudioCanvas() {
           activeWorkflow && exportWorkflow(activeWorkflow)
         }
         onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
-        onDeleteWorkflow={() => deleteWorkflow(activeWorkflowId)}
         canDeleteWorkflow={workflows.length > 1}
       />
       <div className="flex flex-1 overflow-hidden">

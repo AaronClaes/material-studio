@@ -13,7 +13,6 @@ export function WorkflowPanel() {
   const workflows = useWorkflowStore((s) => s.workflows)
   const activeWorkflowId = useWorkflowStore((s) => s.activeWorkflowId)
   const addWorkflow = useWorkflowStore((s) => s.addWorkflow)
-  const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
   const setActiveWorkflowId = useWorkflowStore((s) => s.setActiveWorkflowId)
   const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
@@ -55,7 +54,7 @@ export function WorkflowPanel() {
           const isEditing = editingId === wf.id
 
           return (
-            <ConfirmRemoveWorkflow onConfirm={() => deleteWorkflow(wf.id)}>
+            <ConfirmRemoveWorkflow workflowId={wf.id}>
               <div
                 key={wf.id}
                 className={cn(

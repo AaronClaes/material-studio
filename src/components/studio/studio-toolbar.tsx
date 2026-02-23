@@ -25,7 +25,6 @@ interface StudioToolbarProps {
   canRun: boolean
   onExportWorkflow: () => void
   onDuplicateWorkflow: () => void
-  onDeleteWorkflow: () => void
   canDeleteWorkflow: boolean
 }
 
@@ -38,7 +37,6 @@ export function StudioToolbar({
   canRun,
   onExportWorkflow,
   onDuplicateWorkflow,
-  onDeleteWorkflow,
   canDeleteWorkflow,
 }: StudioToolbarProps) {
   const {
@@ -97,7 +95,7 @@ export function StudioToolbar({
           <IconPlayerPlay size={14} />
           {isRunning ? 'Running…' : 'Run Workflow'}
         </Button>
-        <ConfirmRemoveWorkflow onConfirm={onDeleteWorkflow}>
+        <ConfirmRemoveWorkflow workflowId={workflowId}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon-sm" variant="outline" className="px-2">

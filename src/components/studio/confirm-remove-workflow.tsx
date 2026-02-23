@@ -1,3 +1,5 @@
+import { useShallow } from 'zustand/react/shallow'
+import { Badge } from '../ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,16 +11,34 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { useWorkflowStore } from '@/lib/workflow-store'
 
 type ConfirmRemoveWorkflow = {
-  onConfirm: () => void
   children: React.ReactNode
+  workflowId: string
 }
 
 export function ConfirmRemoveWorkflow({
   children,
-  onConfirm,
+  workflowId,
 }: ConfirmRemoveWorkflow) {
+  const deleteWorkflow = useWorkflowStore((s) => s.deleteWorkflow)
+
+  const dependantWorkflows = useWorkflowStore(
+    useShallow((s) => {
+      const workflows = s.workflows.filter((w) => {
+        return w.nodes.some(
+          (n) => n.type === 'workflowNode' && n.data.workflowId === workflowId,
+        )
+      })
+
+      return workflows
+    }),
+  )
+
+  const hasDependantWorkflows = dependantWorkflows.length > 0
+  const hasMultiple = dependantWorkflows.length > 1
+
   return (
     <AlertDialog>
       {children}
@@ -30,9 +50,28 @@ export function ConfirmRemoveWorkflow({
             workflow.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {hasDependantWorkflows && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              {dependantWorkflows.length} other{' '}
+              {hasMultiple ? 'workflows depend' : 'workflow depends'} on this
+              workflow and will break.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {dependantWorkflows.map((w) => (
+                <Badge variant="destructive" key={w.id}>
+                  {w.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => deleteWorkflow(workflowId)}
+          >
             Confirm
           </AlertDialogAction>
         </AlertDialogFooter>
