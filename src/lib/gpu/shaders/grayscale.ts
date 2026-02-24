@@ -1,5 +1,5 @@
 import { registerPipelineCacheReset } from '../device'
-import { createStorageBuffer, uploadImageData } from '../buffers'
+import { createStorageBuffer } from '../buffers'
 
 const WGSL = /* wgsl */ `
 @group(0) @binding(0) var<storage, read> input: array<u32>;
@@ -37,17 +37,16 @@ function getPipeline(device: GPUDevice): GPUComputePipeline {
 
 export function runGrayscale(
   device: GPUDevice,
-  imageData: ImageData,
-): { heightsBuffer: GPUBuffer; inputBuffer: GPUBuffer } {
-  const pixelCount = imageData.width * imageData.height
-  const inputBuffer = uploadImageData(device, imageData)
+  srcBuffer: GPUBuffer,
+  pixelCount: number,
+): GPUBuffer {
   const heightsBuffer = createStorageBuffer(device, pixelCount * 4)
 
   const p = getPipeline(device)
   const bindGroup = device.createBindGroup({
     layout: p.getBindGroupLayout(0),
     entries: [
-      { binding: 0, resource: { buffer: inputBuffer } },
+      { binding: 0, resource: { buffer: srcBuffer } },
       { binding: 1, resource: { buffer: heightsBuffer } },
     ],
   })
@@ -60,5 +59,5 @@ export function runGrayscale(
   pass.end()
   device.queue.submit([encoder.finish()])
 
-  return { heightsBuffer, inputBuffer }
+  return heightsBuffer
 }

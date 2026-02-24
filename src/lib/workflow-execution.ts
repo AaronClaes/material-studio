@@ -1,5 +1,6 @@
 import { getDownstreamIds, runFromNode, runSingleNode } from './execution'
-import { dataUrlToImageData, processInputNode } from './processors'
+import { dataUrlToGPUBuffer, processInputNode } from './processors'
+import { getGPUDevice } from './gpu'
 import { useDirectoryStore } from './directory-store'
 import { updateWorkflow } from './workflow-crud'
 import type { RunCallbacks, RunOptions } from './execution'
@@ -60,6 +61,10 @@ async function saveOutputNodes(
   }
 }
 
+function revokeOldUrl(url: string | null | undefined): void {
+  if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+}
+
 function makeCallbacks(set: StoreSet, workflowId: string): RunCallbacks {
   return {
     onNodeStart: (id) => {
@@ -73,14 +78,18 @@ function makeCallbacks(set: StoreSet, workflowId: string): RunCallbacks {
       }))
     },
     onNodeDone: (id, dataUrl) => {
-      set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
-          results: {
-            ...w.results,
-            [id]: { status: 'done', outputDataUrl: dataUrl, error: null },
-          },
-        })),
-      }))
+      set((s) => {
+        const wf = s.workflows.find((w) => w.id === workflowId)
+        revokeOldUrl(wf?.results[id]?.outputDataUrl)
+        return {
+          workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+            results: {
+              ...w.results,
+              [id]: { status: 'done', outputDataUrl: dataUrl, error: null },
+            },
+          })),
+        }
+      })
     },
     onNodeError: (id, error) => {
       set((s) => ({
@@ -93,14 +102,18 @@ function makeCallbacks(set: StoreSet, workflowId: string): RunCallbacks {
       }))
     },
     onNodeSkipped: (id, dataUrl) => {
-      set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
-          results: {
-            ...w.results,
-            [id]: { status: 'skipped', outputDataUrl: dataUrl, error: null },
-          },
-        })),
-      }))
+      set((s) => {
+        const wf = s.workflows.find((w) => w.id === workflowId)
+        revokeOldUrl(wf?.results[id]?.outputDataUrl)
+        return {
+          workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
+            results: {
+              ...w.results,
+              [id]: { status: 'skipped', outputDataUrl: dataUrl, error: null },
+            },
+          })),
+        }
+      })
     },
   }
 }
@@ -158,6 +171,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         workflows: updateWorkflow(s.workflows, workflowId, (w) => {
           const results = { ...w.results }
           for (const id of affectedIds) {
+            revokeOldUrl(results[id]?.outputDataUrl)
             results[id] = { status: 'idle', outputDataUrl: null, error: null }
           }
           return { isRunning: true, results }
@@ -208,19 +222,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       if (!node) return
       if (node.data.kind !== 'inputNode' && node.data.disabled) return
 
-      let input: ImageData
-
-      if (node.data.kind === 'inputNode') {
-        if (!node.data.src) return
-        input = await processInputNode(node.data.src)
-      } else {
-        const incomingEdge = edges.find((e) => e.target === nodeId)
-        const upstreamId = incomingEdge?.source
-        if (!upstreamId) return
-        const upstreamResult = wf.results[upstreamId]
-        if (!upstreamResult?.outputDataUrl) return
-        input = await dataUrlToImageData(upstreamResult.outputDataUrl)
-      }
+      const device = await getGPUDevice()
 
       set((s) => ({
         workflows: updateWorkflow(s.workflows, workflowId, (w) => ({
@@ -231,13 +233,37 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         })),
       }))
 
-      await runSingleNode(
-        nodeId,
-        input,
-        nodes,
-        makeCallbacks(set, workflowId),
-        makeRunOptions(get, workflowId),
-      )
+      if (node.data.kind === 'inputNode') {
+        if (!node.data.src) return
+        const input = await processInputNode(device, node.data.src)
+        await runSingleNode(
+          nodeId,
+          input,
+          nodes,
+          makeCallbacks(set, workflowId),
+          makeRunOptions(get, workflowId),
+        )
+        input.buffer.destroy()
+      } else {
+        const incomingEdge = edges.find((e) => e.target === nodeId)
+        const upstreamId = incomingEdge?.source
+        if (!upstreamId) return
+        const upstreamResult = wf.results[upstreamId]
+        if (!upstreamResult?.outputDataUrl) return
+
+        const input = await dataUrlToGPUBuffer(
+          device,
+          upstreamResult.outputDataUrl,
+        )
+        await runSingleNode(
+          nodeId,
+          input,
+          nodes,
+          makeCallbacks(set, workflowId),
+          makeRunOptions(get, workflowId),
+        )
+        input.buffer.destroy()
+      }
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
@@ -266,6 +292,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           workflows: updateWorkflow(s.workflows, workflowId, (w) => {
             const results = { ...w.results }
             for (const id of downstreamIds) {
+              revokeOldUrl(results[id]?.outputDataUrl)
               results[id] = { status: 'idle', outputDataUrl: null, error: null }
             }
             return { isRunning: true, results }
@@ -309,7 +336,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       const upstreamResult = wf.results[upstreamId]
       if (!upstreamResult?.outputDataUrl) return
 
-      const initialInput = await dataUrlToImageData(
+      const device = await getGPUDevice()
+      // Upload from stored data URL — destroyed by destroyAllOutputs inside runGraphSlice
+      const initialInput = await dataUrlToGPUBuffer(
+        device,
         upstreamResult.outputDataUrl,
       )
 
@@ -318,6 +348,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         workflows: updateWorkflow(s.workflows, workflowId, (w) => {
           const results = { ...w.results }
           for (const id of affectedIds) {
+            revokeOldUrl(results[id]?.outputDataUrl)
             results[id] = { status: 'idle', outputDataUrl: null, error: null }
           }
           return { isRunning: true, results }
@@ -411,6 +442,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           workflows: updateWorkflow(s.workflows, workflowId, (w) => {
             const results = { ...w.results }
             for (const id of downstreamIds) {
+              revokeOldUrl(results[id]?.outputDataUrl)
               results[id] = { status: 'idle', outputDataUrl: null, error: null }
             }
             return { results }
@@ -450,12 +482,20 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
     },
 
     resetWorkflow: (workflowId: string) => {
-      set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, () => ({
-          results: {},
-          isRunning: false,
-        })),
-      }))
+      set((s) => {
+        const wf = s.workflows.find((w) => w.id === workflowId)
+        if (wf) {
+          for (const result of Object.values(wf.results)) {
+            revokeOldUrl(result?.outputDataUrl)
+          }
+        }
+        return {
+          workflows: updateWorkflow(s.workflows, workflowId, () => ({
+            results: {},
+            isRunning: false,
+          })),
+        }
+      })
     },
   }
 }

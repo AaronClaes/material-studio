@@ -1,5 +1,5 @@
 import { registerPipelineCacheReset } from '../device'
-import { createStorageBuffer, createUniformBuffer, readBackAsUint8 } from '../buffers'
+import { createStorageBuffer, createUniformBuffer } from '../buffers'
 
 const WGSL = /* wgsl */ `
 struct Params {
@@ -94,7 +94,7 @@ function getPipeline(device: GPUDevice): GPUComputePipeline {
   return pipeline
 }
 
-export async function runNormalmap(
+export function runNormalmap(
   device: GPUDevice,
   heightsBuffer: GPUBuffer,
   w: number,
@@ -106,10 +106,9 @@ export async function runNormalmap(
     zRange: boolean
     useScharr: boolean
   },
-): Promise<ImageData> {
+): GPUBuffer {
   const count = w * h
 
-  // 8 x u32/f32 = 32 bytes (16-byte aligned)
   const uniformData = new ArrayBuffer(32)
   const view = new DataView(uniformData)
   view.setUint32(0, w, true)
@@ -142,11 +141,7 @@ export async function runNormalmap(
   pass.end()
   device.queue.submit([encoder.finish()])
 
-  const result = await readBackAsUint8(device, outputBuffer, count * 4)
-
   uniformBuffer.destroy()
-  outputBuffer.destroy()
-  heightsBuffer.destroy()
 
-  return new ImageData(result, w, h)
+  return outputBuffer
 }

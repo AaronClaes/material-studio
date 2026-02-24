@@ -1,7 +1,6 @@
-// Pure Canvas 2D API image processing functions
+// GPU-resident image processing functions
 
-export { imageDataToDataUrl } from './utils'
-export { processInputNode, dataUrlToImageData } from './input'
+export { processInputNode, dataUrlToGPUBuffer } from './input'
 export { processCropNode } from './crop'
 export { processResolutionNode } from './resolution'
 export { processColorNode } from './color'

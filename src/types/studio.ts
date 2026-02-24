@@ -1,5 +1,11 @@
 import type { Edge, Node } from '@xyflow/react'
 
+export interface GPUImageBuffer {
+  buffer: GPUBuffer // packed RGBA u32 storage buffer
+  width: number
+  height: number
+}
+
 export type NodeKind =
   | 'inputNode'
   | 'crop'

@@ -1,13 +1,9 @@
-import {
-  getGPUDevice,
-  runBlurSharp,
-  runGrayscale,
-  runInvert,
-  runNormalmap,
-} from '../gpu'
+import { runBlurSharp, runGrayscale, runInvert, runNormalmap } from '../gpu'
+import type { GPUImageBuffer } from '@/types/studio'
 
 export async function processNormalmapNode(
-  input: ImageData,
+  device: GPUDevice,
+  input: GPUImageBuffer,
   params: {
     strength: number
     level: number
@@ -18,14 +14,10 @@ export async function processNormalmapNode(
     invertHeight: boolean
     zRange: boolean
   },
-): Promise<ImageData> {
+): Promise<GPUImageBuffer> {
   const { width, height } = input
-  const device = await getGPUDevice()
 
-  const { heightsBuffer, inputBuffer } = runGrayscale(device, input)
-  inputBuffer.destroy()
-
-  let current = heightsBuffer
+  let current = runGrayscale(device, input.buffer, width * height)
 
   if (params.invertHeight) {
     const inverted = runInvert(device, current, width * height)
@@ -45,11 +37,14 @@ export async function processNormalmapNode(
     current = blurred
   }
 
-  return runNormalmap(device, current, width, height, {
+  const outputBuffer = runNormalmap(device, current, width, height, {
     scale: params.strength * params.level,
     invertR: params.invertR,
     invertG: params.invertG,
     zRange: params.zRange,
     useScharr: params.filter === 'scharr',
   })
+  current.destroy()
+
+  return { buffer: outputBuffer, width, height }
 }

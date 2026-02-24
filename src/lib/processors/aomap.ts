@@ -1,13 +1,9 @@
-import {
-  getGPUDevice,
-  runGrayscale,
-  runInvert,
-  runBlurSharp,
-  runAomap,
-} from '../gpu'
+import { runAomap, runBlurSharp, runGrayscale, runInvert } from '../gpu'
+import type { GPUImageBuffer } from '@/types/studio'
 
 export async function processAomapNode(
-  input: ImageData,
+  device: GPUDevice,
+  input: GPUImageBuffer,
   params: {
     strength: number
     mean: number
@@ -15,17 +11,19 @@ export async function processAomapNode(
     blurSharp: number
     invert: boolean
   },
-): Promise<ImageData> {
+): Promise<GPUImageBuffer> {
   const { width, height } = input
-  const device = await getGPUDevice()
 
-  const { heightsBuffer, inputBuffer } = runGrayscale(device, input)
-  inputBuffer.destroy()
-
-  let current = heightsBuffer
+  let current = runGrayscale(device, input.buffer, width * height)
 
   if (params.blurSharp !== 0) {
-    const blurred = runBlurSharp(device, current, width, height, params.blurSharp)
+    const blurred = runBlurSharp(
+      device,
+      current,
+      width,
+      height,
+      params.blurSharp,
+    )
     current.destroy()
     current = blurred
   }
@@ -38,9 +36,12 @@ export async function processAomapNode(
 
   const radius = params.range * Math.min(width, height) * 0.3
 
-  return runAomap(device, current, width, height, {
+  const outputBuffer = runAomap(device, current, width, height, {
     radius,
     strength: params.strength,
     mean: params.mean,
   })
+  current.destroy()
+
+  return { buffer: outputBuffer, width, height }
 }

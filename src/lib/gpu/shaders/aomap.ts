@@ -1,5 +1,5 @@
 import { registerPipelineCacheReset } from '../device'
-import { createStorageBuffer, createUniformBuffer, readBackAsUint8 } from '../buffers'
+import { createStorageBuffer, createUniformBuffer } from '../buffers'
 
 const WGSL = /* wgsl */ `
 const PI: f32 = 3.14159265358979323846;
@@ -63,7 +63,7 @@ function getPipeline(device: GPUDevice): GPUComputePipeline {
   return pipeline
 }
 
-export async function runAomap(
+export function runAomap(
   device: GPUDevice,
   heightsBuffer: GPUBuffer,
   w: number,
@@ -73,7 +73,7 @@ export async function runAomap(
     strength: number
     mean: number
   },
-): Promise<ImageData> {
+): GPUBuffer {
   const count = w * h
 
   // 8 x 4 bytes = 32 bytes (16-byte aligned)
@@ -109,11 +109,7 @@ export async function runAomap(
   pass.end()
   device.queue.submit([encoder.finish()])
 
-  const result = await readBackAsUint8(device, outputBuffer, count * 4)
-
   uniformBuffer.destroy()
-  outputBuffer.destroy()
-  heightsBuffer.destroy()
 
-  return new ImageData(result, w, h)
+  return outputBuffer
 }

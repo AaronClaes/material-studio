@@ -1,5 +1,5 @@
 import { registerPipelineCacheReset } from '../device'
-import { createStorageBuffer, createUniformBuffer, readBackAsUint8 } from '../buffers'
+import { createStorageBuffer, createUniformBuffer } from '../buffers'
 
 const WGSL = /* wgsl */ `
 struct Params {
@@ -39,13 +39,13 @@ function getPipeline(device: GPUDevice): GPUComputePipeline {
   return pipeline
 }
 
-export async function runDisplacement(
+export function runDisplacement(
   device: GPUDevice,
   heightsBuffer: GPUBuffer,
   w: number,
   h: number,
   contrast: number,
-): Promise<ImageData> {
+): GPUBuffer {
   const count = w * h
 
   const uniformData = new ArrayBuffer(8)
@@ -74,11 +74,7 @@ export async function runDisplacement(
   pass.end()
   device.queue.submit([encoder.finish()])
 
-  const result = await readBackAsUint8(device, outputBuffer, count * 4)
-
   uniformBuffer.destroy()
-  outputBuffer.destroy()
-  heightsBuffer.destroy()
 
-  return new ImageData(result, w, h)
+  return outputBuffer
 }

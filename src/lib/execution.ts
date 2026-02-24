@@ -1,5 +1,4 @@
 import {
-  imageDataToDataUrl,
   processAomapNode,
   processColorNode,
   processCropNode,
@@ -9,7 +8,13 @@ import {
   processOutputNode,
   processResolutionNode,
 } from './processors'
-import type { StudioEdge, StudioNode, StudioNodeData } from '@/types/studio'
+import { getGPUDevice, gpuBufferToObjectUrl } from './gpu'
+import type {
+  GPUImageBuffer,
+  StudioEdge,
+  StudioNode,
+  StudioNodeData,
+} from '@/types/studio'
 
 export function topoSort(
   nodes: Array<StudioNode>,
@@ -72,14 +77,12 @@ export interface RunOptions {
 }
 
 /**
- * Result of processing a single node.
- * `dataUrl` is only set for outputNode; all others expose `imageData` for
- * passing downstream. This keeps the processor boundary explicit and makes it
- * straightforward to add new node kinds.
+ * Result of processing a single node. All nodes now produce a GPUImageBuffer
+ * that lives in GPU memory until the graph slice finishes.
  */
 type NodeProcessResult =
-  | { kind: 'image'; imageData: ImageData; dataUrl: string }
-  | { kind: 'output'; imageData: ImageData; dataUrl: string }
+  | { kind: 'image'; gpuBuffer: GPUImageBuffer; dataUrl: string }
+  | { kind: 'output'; gpuBuffer: GPUImageBuffer; dataUrl: string }
 
 const NOOP_CALLBACKS: RunCallbacks = {
   onNodeStart: () => {},
@@ -143,10 +146,10 @@ function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
 
 function seedInitialInput(
   startNodeId: string,
-  initialInput: ImageData | undefined,
+  initialInput: GPUImageBuffer | undefined,
   edges: Array<StudioEdge>,
   incomingEdge: Map<string, string>,
-  outputs: Map<string, ImageData>,
+  outputs: Map<string, GPUImageBuffer>,
 ) {
   if (!initialInput) return
 
@@ -162,15 +165,43 @@ function seedInitialInput(
   outputs.set(seedId, initialInput)
 }
 
+/** Destroy all unique GPUBuffers held in the outputs map. */
+function destroyAllOutputs(outputs: Map<string, GPUImageBuffer>): void {
+  const destroyed = new Set<GPUBuffer>()
+  for (const img of outputs.values()) {
+    if (!destroyed.has(img.buffer)) {
+      img.buffer.destroy()
+      destroyed.add(img.buffer)
+    }
+  }
+}
+
+/** Destroy all outputs EXCEPT the one for keepId (used for nested workflow cleanup). */
+function destroyOutputsExcept(
+  outputs: Map<string, GPUImageBuffer>,
+  keepId: string,
+): void {
+  const keepBuffer = outputs.get(keepId)?.buffer
+  const destroyed = new Set<GPUBuffer>()
+  for (const img of outputs.values()) {
+    if (img.buffer === keepBuffer) continue
+    if (!destroyed.has(img.buffer)) {
+      img.buffer.destroy()
+      destroyed.add(img.buffer)
+    }
+  }
+}
+
 async function runGraphSlice(options: {
+  device: GPUDevice
   startNodeId: string
   endNodeId?: string
-  initialInput: ImageData | undefined
+  initialInput: GPUImageBuffer | undefined
   nodes: Array<StudioNode>
   edges: Array<StudioEdge>
   callbacks: RunCallbacks
   runOptions?: RunOptions
-}): Promise<Map<string, ImageData>> {
+}): Promise<Map<string, GPUImageBuffer>> {
   const idsToRun = options.endNodeId
     ? getIdsBetweenNodes(options.startNodeId, options.endNodeId, options.edges)
     : getDownstreamIds(options.startNodeId, options.edges)
@@ -183,7 +214,7 @@ async function runGraphSlice(options: {
   const order = topoSort(nodesToRun, edgesToRun)
   const nodeMap = new Map(options.nodes.map((node) => [node.id, node]))
   const incomingEdge = buildIncomingEdgeMap(edgesToRun)
-  const outputs = new Map<string, ImageData>()
+  const outputs = new Map<string, GPUImageBuffer>()
 
   seedInitialInput(
     options.startNodeId,
@@ -194,6 +225,7 @@ async function runGraphSlice(options: {
   )
 
   await executeOrder(
+    options.device,
     order,
     nodeMap,
     incomingEdge,
@@ -202,61 +234,65 @@ async function runGraphSlice(options: {
     options.runOptions,
   )
 
+  destroyAllOutputs(outputs)
+
   return outputs
 }
 
 async function processNode(
+  device: GPUDevice,
   data: StudioNodeData,
-  input: ImageData | undefined,
+  input: GPUImageBuffer | undefined,
   runOptions?: RunOptions,
 ): Promise<NodeProcessResult> {
   if (data.kind === 'inputNode') {
     if (data.src) {
-      const imageData = await processInputNode(data.src)
-      return {
-        kind: 'image',
-        imageData,
-        dataUrl: imageDataToDataUrl(imageData),
-      }
+      const gpuBuffer = await processInputNode(device, data.src)
+      const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+      return { kind: 'image', gpuBuffer, dataUrl }
     }
     if (!input) throw new Error('No image selected')
-    return { kind: 'image', imageData: input, dataUrl: imageDataToDataUrl(input) }
+    const dataUrl = await gpuBufferToObjectUrl(device, input)
+    return { kind: 'image', gpuBuffer: input, dataUrl }
   }
 
   if (!input) throw new Error('No upstream input')
 
   if (data.kind === 'crop') {
-    const imageData = await processCropNode(input, {
+    const gpuBuffer = await processCropNode(device, input, {
       x: data.x,
       y: data.y,
       width: data.width,
       height: data.height,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'resolution') {
-    const imageData = await processResolutionNode(input, {
+    const gpuBuffer = await processResolutionNode(device, input, {
       width: data.width,
       height: data.height,
       maintainAspect: data.maintainAspect,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'color') {
-    const imageData = await processColorNode(input, {
+    const gpuBuffer = await processColorNode(device, input, {
       brightness: data.brightness,
       contrast: data.contrast,
       saturation: data.saturation,
       hue: data.hue,
       tintColor: data.tintColor,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'normalmap') {
-    const imageData = await processNormalmapNode(input, {
+    const gpuBuffer = await processNormalmapNode(device, input, {
       strength: data.strength,
       level: data.level,
       blurSharp: data.blurSharp,
@@ -266,27 +302,30 @@ async function processNode(
       invertHeight: data.invertHeight,
       zRange: data.zRange,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'displacement') {
-    const imageData = await processDisplacementNode(input, {
+    const gpuBuffer = await processDisplacementNode(device, input, {
       contrast: data.contrast,
       blurSharp: data.blurSharp,
       invert: data.invert,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'aomap') {
-    const imageData = await processAomapNode(input, {
+    const gpuBuffer = await processAomapNode(device, input, {
       strength: data.strength,
       mean: data.mean,
       range: data.range,
       blurSharp: data.blurSharp,
       invert: data.invert,
     })
-    return { kind: 'image', imageData, dataUrl: imageDataToDataUrl(imageData) }
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
   }
 
   if (data.kind === 'workflowNode') {
@@ -308,6 +347,7 @@ async function processNode(
     if (!nestedWorkflow) throw new Error('Selected workflow no longer exists')
 
     const nestedOutputs = await runGraphSlice({
+      device,
       startNodeId: data.startNodeId,
       endNodeId: data.endNodeId,
       initialInput: input,
@@ -325,14 +365,18 @@ async function processNode(
     if (!output) {
       throw new Error('Selected end node did not produce output')
     }
-    return { kind: 'image', imageData: output, dataUrl: imageDataToDataUrl(output) }
+    // Clean up nested buffers except the one we're passing out
+    destroyOutputsExcept(nestedOutputs, data.endNodeId)
+
+    const dataUrl = await gpuBufferToObjectUrl(device, output)
+    return { kind: 'image', gpuBuffer: output, dataUrl }
   }
 
   // outputNode
-  const result = await processOutputNode(input, { format: data.format })
+  const result = await processOutputNode(device, input, { format: data.format })
   return {
     kind: 'output',
-    imageData: result.imageData,
+    gpuBuffer: result.gpuBuffer,
     dataUrl: result.dataUrl,
   }
 }
@@ -343,10 +387,11 @@ async function processNode(
  * upstream results before calling (used by `runFromNode`).
  */
 async function executeOrder(
+  device: GPUDevice,
   order: Array<string>,
   nodeMap: Map<string, StudioNode>,
   incomingEdge: Map<string, string>,
-  outputs: Map<string, ImageData>,
+  outputs: Map<string, GPUImageBuffer>,
   callbacks: RunCallbacks,
   runOptions?: RunOptions,
 ): Promise<void> {
@@ -370,7 +415,8 @@ async function executeOrder(
       const upstreamData = upstreamId ? outputs.get(upstreamId) : undefined
       if (upstreamData) {
         outputs.set(id, upstreamData)
-        callbacks.onNodeSkipped(id, imageDataToDataUrl(upstreamData))
+        const dataUrl = await gpuBufferToObjectUrl(device, upstreamData)
+        callbacks.onNodeSkipped(id, dataUrl)
       }
       continue
     }
@@ -379,8 +425,8 @@ async function executeOrder(
 
     try {
       const input = upstreamId ? outputs.get(upstreamId) : undefined
-      const result = await processNode(node.data, input, runOptions)
-      outputs.set(id, result.imageData)
+      const result = await processNode(device, node.data, input, runOptions)
+      outputs.set(id, result.gpuBuffer)
       callbacks.onNodeDone(id, result.dataUrl)
     } catch (err) {
       failed.add(id)
@@ -394,7 +440,7 @@ async function executeOrder(
 
 export async function runSingleNode(
   nodeId: string,
-  input: ImageData,
+  input: GPUImageBuffer,
   nodes: Array<StudioNode>,
   callbacks: RunCallbacks,
   runOptions?: RunOptions,
@@ -402,11 +448,14 @@ export async function runSingleNode(
   const node = nodes.find((n) => n.id === nodeId)
   if (!node) return
 
+  const device = await getGPUDevice()
+
   callbacks.onNodeStart(nodeId)
 
   try {
-    const result = await processNode(node.data, input, runOptions)
+    const result = await processNode(device, node.data, input, runOptions)
     callbacks.onNodeDone(nodeId, result.dataUrl)
+    result.gpuBuffer.buffer.destroy()
   } catch (err) {
     callbacks.onNodeError(
       nodeId,
@@ -440,13 +489,15 @@ export function getDownstreamIds(
 
 export async function runFromNode(
   startNodeId: string,
-  initialInput: ImageData | undefined,
+  initialInput: GPUImageBuffer | undefined,
   nodes: Array<StudioNode>,
   edges: Array<StudioEdge>,
   callbacks: RunCallbacks,
   runOptions?: RunOptions,
 ): Promise<void> {
+  const device = await getGPUDevice()
   await runGraphSlice({
+    device,
     startNodeId,
     initialInput,
     nodes,
@@ -471,6 +522,13 @@ export async function runWorkflow(
     (n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch,
   )
   for (const inputNode of inputNodes) {
-    await runFromNode(inputNode.id, undefined, nodes, edges, callbacks, runOptions)
+    await runFromNode(
+      inputNode.id,
+      undefined,
+      nodes,
+      edges,
+      callbacks,
+      runOptions,
+    )
   }
 }

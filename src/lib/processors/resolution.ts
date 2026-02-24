@@ -1,9 +1,11 @@
-import { imageDataToCanvas } from './utils'
+import { runResize } from '../gpu/shaders/resize'
+import type { GPUImageBuffer } from '@/types/studio'
 
 export function processResolutionNode(
-  input: ImageData,
+  device: GPUDevice,
+  input: GPUImageBuffer,
   params: { width: number; height: number; maintainAspect: boolean },
-): Promise<ImageData> {
+): Promise<GPUImageBuffer> {
   let { width, height } = params
 
   if (params.maintainAspect) {
@@ -18,11 +20,5 @@ export function processResolutionNode(
   width = Math.max(1, width)
   height = Math.max(1, height)
 
-  const dstCanvas = document.createElement('canvas')
-  dstCanvas.width = width
-  dstCanvas.height = height
-  const dstCtx = dstCanvas.getContext('2d')!
-  dstCtx.drawImage(imageDataToCanvas(input), 0, 0, width, height)
-
-  return Promise.resolve(dstCtx.getImageData(0, 0, width, height))
+  return Promise.resolve(runResize(device, input, width, height))
 }

@@ -1,26 +1,18 @@
-import {
-  getGPUDevice,
-  runBlurSharp,
-  runDisplacement,
-  runGrayscale,
-  runInvert,
-} from '../gpu'
+import { runBlurSharp, runDisplacement, runGrayscale, runInvert } from '../gpu'
+import type { GPUImageBuffer } from '@/types/studio'
 
 export async function processDisplacementNode(
-  input: ImageData,
+  device: GPUDevice,
+  input: GPUImageBuffer,
   params: {
     contrast: number
     blurSharp: number
     invert: boolean
   },
-): Promise<ImageData> {
+): Promise<GPUImageBuffer> {
   const { width, height } = input
-  const device = await getGPUDevice()
 
-  const { heightsBuffer, inputBuffer } = runGrayscale(device, input)
-  inputBuffer.destroy()
-
-  let current = heightsBuffer
+  let current = runGrayscale(device, input.buffer, width * height)
 
   if (params.invert) {
     const inverted = runInvert(device, current, width * height)
@@ -40,5 +32,14 @@ export async function processDisplacementNode(
     current = blurred
   }
 
-  return runDisplacement(device, current, width, height, params.contrast)
+  const outputBuffer = runDisplacement(
+    device,
+    current,
+    width,
+    height,
+    params.contrast,
+  )
+  current.destroy()
+
+  return { buffer: outputBuffer, width, height }
 }

@@ -24,8 +24,3 @@ export function imageDataToCanvas(imageData: ImageData): HTMLCanvasElement {
   ctx.putImageData(imageData, 0, 0)
   return canvas
 }
-
-/** Convert ImageData to a full-resolution PNG data URL for display. */
-export function imageDataToDataUrl(data: ImageData): string {
-  return imageDataToCanvas(data).toDataURL('image/png')
-}
