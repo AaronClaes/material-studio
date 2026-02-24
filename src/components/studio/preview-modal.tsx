@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -61,6 +62,9 @@ export function PreviewModal({
   const [shape, setShape] = useState<Preview3DShape>('sphere')
   const [textureRepeat, setTextureRepeat] = useState(1)
   const [showSettings, setShowSettings] = useState(false)
+  const [repeatEnabled, setRepeatEnabled] = useState(false)
+  const [repeatAmount, setRepeatAmount] = useState(3)
+  const [showGrid, setShowGrid] = useState(false)
 
   const workflow = useActiveWorkflow()
   const comparableNodes =
@@ -109,6 +113,7 @@ export function PreviewModal({
       setViewMode('split')
       setSliderPos(50)
       setShowSettings(false)
+      setRepeatEnabled(false)
       if (!onViewChange) {
         setInternalView('image')
       }
@@ -163,7 +168,10 @@ export function PreviewModal({
               Settings
               <IconChevronDown
                 size={12}
-                className={cn('transition-transform', showSettings && 'rotate-180')}
+                className={cn(
+                  'transition-transform',
+                  showSettings && 'rotate-180',
+                )}
               />
             </Button>
             <DialogClose />
@@ -183,9 +191,7 @@ export function PreviewModal({
                   <Select
                     value={compareNodeId ?? COMPARE_NONE_VALUE}
                     onValueChange={(val) =>
-                      setCompareNodeId(
-                        val === COMPARE_NONE_VALUE ? null : val,
-                      )
+                      setCompareNodeId(val === COMPARE_NONE_VALUE ? null : val)
                     }
                     disabled={!hasComparableNodes}
                   >
@@ -199,7 +205,10 @@ export function PreviewModal({
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={COMPARE_NONE_VALUE} className="text-xs">
+                      <SelectItem
+                        value={COMPARE_NONE_VALUE}
+                        className="text-xs"
+                      >
                         None
                       </SelectItem>
                       {comparableNodes.map((n) => (
@@ -242,6 +251,58 @@ export function PreviewModal({
                   </div>
                 )}
 
+                {currentView === 'image' && (
+                  <div className="space-y-3 border-t border-border/60 pt-3">
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">
+                        Repeat
+                      </span>
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        size="sm"
+                        value={repeatEnabled ? 'on' : 'off'}
+                        onValueChange={(val) => {
+                          if (val === 'on' || val === 'off') {
+                            setRepeatEnabled(val === 'on')
+                          }
+                        }}
+                        spacing={0}
+                        className="w-full"
+                      >
+                        <ToggleGroupItem value="off" className="flex-1 text-xs">
+                          Off
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="on" className="flex-1 text-xs">
+                          On
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                    {repeatEnabled && (
+                      <>
+                        <TextureRepeatControl
+                          label="Amount"
+                          value={repeatAmount}
+                          min={1}
+                          max={8}
+                          onChange={setRepeatAmount}
+                        />
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={showGrid}
+                            onCheckedChange={(checked) =>
+                              setShowGrid(checked === true)
+                            }
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            Show grid
+                          </span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {currentView === '3d' && (
                   <div className="space-y-3 border-t border-border/60 pt-3">
                     <div className="space-y-1">
@@ -271,6 +332,7 @@ export function PreviewModal({
                       </Select>
                     </div>
                     <TextureRepeatControl
+                      label="Texture repeat"
                       value={textureRepeat}
                       min={1}
                       max={20}
@@ -290,6 +352,9 @@ export function PreviewModal({
                   rightDataUrl={dataUrl}
                   leftLabel={compareNodeLabel ?? 'Compare'}
                   rightLabel={title}
+                  repeatEnabled={repeatEnabled}
+                  repeatAmount={repeatAmount}
+                  showGrid={showGrid}
                 />
               ) : (
                 <OverlayView
@@ -299,8 +364,17 @@ export function PreviewModal({
                   rightLabel={title}
                   sliderPos={sliderPos}
                   onSliderChange={setSliderPos}
+                  repeatEnabled={repeatEnabled}
+                  repeatAmount={repeatAmount}
+                  showGrid={showGrid}
                 />
               )
+            ) : repeatEnabled ? (
+              <RepeatView
+                dataUrl={dataUrl}
+                repeatAmount={repeatAmount}
+                showGrid={showGrid}
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center p-6">
                 <ImageView dataUrl={dataUrl} />
@@ -346,6 +420,145 @@ function ImageView({ dataUrl }: { dataUrl: string | null }) {
       src={dataUrl}
       alt="Full preview"
       className="max-h-full max-w-full object-contain"
+    />
+  )
+}
+
+// Renders a correctly-proportioned NxN repeat grid using a canvas.
+// A canvas is used instead of CSS background-repeat because CSS gradients always
+// start a line at position 0 of each tile, producing unwanted lines on the outer
+// edges of the grid. The canvas draws tiles at the correct aspect ratio and grid
+// lines only between tiles (never at outer edges).
+function RepeatTileGrid({
+  dataUrl,
+  repeatAmount,
+  showGrid,
+  className,
+  style,
+}: {
+  dataUrl: string
+  repeatAmount: number
+  showGrid: boolean
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    const canvas = canvasRef.current
+    if (!container || !canvas) return
+
+    let cancelled = false
+    let currentImg: HTMLImageElement | null = null
+
+    function draw(img: HTMLImageElement) {
+      if (cancelled || !canvas) return
+      const cW = container!.clientWidth
+      const cH = container!.clientHeight
+      if (cW <= 0 || cH <= 0) return
+
+      const scale = Math.min(
+        cW / (repeatAmount * img.naturalWidth),
+        cH / (repeatAmount * img.naturalHeight),
+      )
+      const tileW = img.naturalWidth * scale
+      const tileH = img.naturalHeight * scale
+      const cssW = Math.round(tileW * repeatAmount)
+      const cssH = Math.round(tileH * repeatAmount)
+
+      // Scale canvas backing store by devicePixelRatio for crisp rendering on HiDPI screens
+      const dpr = window.devicePixelRatio
+      canvas.width = cssW * dpr
+      canvas.height = cssH * dpr
+      canvas.style.width = `${cssW}px`
+      canvas.style.height = `${cssH}px`
+
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(dpr, dpr)
+
+      // Use rounded boundaries so adjacent tiles share exact pixel edges (no gaps)
+      for (let row = 0; row < repeatAmount; row++) {
+        const ty = Math.round(row * tileH)
+        const th = Math.round((row + 1) * tileH) - ty
+        for (let col = 0; col < repeatAmount; col++) {
+          const tx = Math.round(col * tileW)
+          const tw = Math.round((col + 1) * tileW) - tx
+          ctx.drawImage(img, tx, ty, tw, th)
+        }
+      }
+
+      if (showGrid) {
+        ctx.save()
+        ctx.strokeStyle = 'rgba(0, 0, 0, 1)'
+        ctx.lineWidth = 2
+        // Vertical lines — only between columns, not at outer edges
+        for (let col = 1; col < repeatAmount; col++) {
+          const x = Math.round(col * tileW) + 0.5
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, cssH)
+          ctx.stroke()
+        }
+        // Horizontal lines — only between rows, not at outer edges
+        for (let row = 1; row < repeatAmount; row++) {
+          const y = Math.round(row * tileH) + 0.5
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(cssW, y)
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+    }
+
+    const img = new Image()
+    img.onload = () => {
+      currentImg = img
+      draw(img)
+    }
+    img.src = dataUrl
+
+    const observer = new ResizeObserver(() => {
+      if (currentImg) draw(currentImg)
+    })
+    observer.observe(container)
+
+    return () => {
+      cancelled = true
+      observer.disconnect()
+    }
+  }, [dataUrl, repeatAmount, showGrid])
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn('flex items-center justify-center', className)}
+      style={style}
+    >
+      <canvas ref={canvasRef} />
+    </div>
+  )
+}
+
+function RepeatView({
+  dataUrl,
+  repeatAmount,
+  showGrid,
+}: {
+  dataUrl: string | null
+  repeatAmount: number
+  showGrid: boolean
+}) {
+  if (!dataUrl) return <ImageView dataUrl={null} />
+
+  return (
+    <RepeatTileGrid
+      dataUrl={dataUrl}
+      repeatAmount={repeatAmount}
+      showGrid={showGrid}
+      className="h-full w-full"
     />
   )
 }
@@ -415,7 +628,11 @@ function TexturedMesh({
   return (
     <mesh
       ref={meshRef}
-      rotation={[shape === 'plane' ? 0 : -0.12, 0.3, shape === 'plane' ? 0 : 0.05]}
+      rotation={[
+        shape === 'plane' ? 0 : -0.12,
+        0.3,
+        shape === 'plane' ? 0 : 0.05,
+      ]}
     >
       {shape === 'sphere' && <sphereGeometry args={[1.1, 64, 64]} />}
       {shape === 'cube' && <boxGeometry args={[1.7, 1.7, 1.7]} />}
@@ -433,6 +650,9 @@ interface SplitViewProps {
   rightDataUrl: string | null
   leftLabel: string
   rightLabel: string
+  repeatEnabled?: boolean
+  repeatAmount?: number
+  showGrid?: boolean
 }
 
 function SplitView({
@@ -440,39 +660,48 @@ function SplitView({
   rightDataUrl,
   leftLabel,
   rightLabel,
+  repeatEnabled = false,
+  repeatAmount = 3,
+  showGrid = false,
 }: SplitViewProps) {
+  function renderPanel(dataUrl: string | null, alt: string) {
+    if (!dataUrl) {
+      return (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <IconPhoto size={32} className="opacity-30" />
+          <span className="text-xs">No output</span>
+        </div>
+      )
+    }
+    if (repeatEnabled) {
+      return (
+        <RepeatTileGrid
+          dataUrl={dataUrl}
+          repeatAmount={repeatAmount}
+          showGrid={showGrid}
+          className="w-full h-full"
+        />
+      )
+    }
+    return (
+      <img
+        src={dataUrl}
+        alt={alt}
+        className="max-h-full max-w-full object-contain"
+      />
+    )
+  }
+
   return (
     <div className="flex h-full w-full">
       <div className="relative flex flex-1 items-center justify-center p-4 border-r border-border overflow-hidden">
-        {leftDataUrl ? (
-          <img
-            src={leftDataUrl}
-            alt={leftLabel}
-            className="max-h-full max-w-full object-contain"
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <IconPhoto size={32} className="opacity-30" />
-            <span className="text-xs">No output</span>
-          </div>
-        )}
+        {renderPanel(leftDataUrl, leftLabel)}
         <span className="absolute bottom-2 left-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {leftLabel}
         </span>
       </div>
       <div className="relative flex flex-1 items-center justify-center p-4 overflow-hidden">
-        {rightDataUrl ? (
-          <img
-            src={rightDataUrl}
-            alt={rightLabel}
-            className="max-h-full max-w-full object-contain"
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <IconPhoto size={32} className="opacity-30" />
-            <span className="text-xs">No output</span>
-          </div>
-        )}
+        {renderPanel(rightDataUrl, rightLabel)}
         <span className="absolute bottom-2 right-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {rightLabel} (current)
         </span>
@@ -525,11 +754,13 @@ function Split3DView({
 }
 
 function TextureRepeatControl({
+  label = 'Texture repeat',
   value,
   min,
   max,
   onChange,
 }: {
+  label?: string
   value: number
   min: number
   max: number
@@ -551,7 +782,7 @@ function TextureRepeatControl({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Texture repeat</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
         <input
           type="text"
           inputMode="numeric"
@@ -585,6 +816,9 @@ interface OverlayViewProps {
   rightLabel: string
   sliderPos: number
   onSliderChange: (pos: number) => void
+  repeatEnabled?: boolean
+  repeatAmount?: number
+  showGrid?: boolean
 }
 
 function OverlayView({
@@ -594,6 +828,9 @@ function OverlayView({
   rightLabel,
   sliderPos,
   onSliderChange,
+  repeatEnabled = false,
+  repeatAmount = 3,
+  showGrid = false,
 }: OverlayViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
@@ -626,25 +863,43 @@ function OverlayView({
       onPointerUp={handlePointerUp}
     >
       {/* Right image (current) — shown from sliderPos% to right */}
-      {rightDataUrl && (
-        <img
-          src={rightDataUrl}
-          alt={rightLabel}
-          className="absolute inset-0 h-full w-full object-contain pointer-events-none"
-          style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
-          draggable={false}
-        />
-      )}
+      {rightDataUrl &&
+        (repeatEnabled ? (
+          <RepeatTileGrid
+            dataUrl={rightDataUrl}
+            repeatAmount={repeatAmount}
+            showGrid={showGrid}
+            className="absolute inset-0 pointer-events-none"
+            style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+          />
+        ) : (
+          <img
+            src={rightDataUrl}
+            alt={rightLabel}
+            className="absolute inset-0 h-full w-full object-contain pointer-events-none"
+            style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+            draggable={false}
+          />
+        ))}
       {/* Left image (compare) — shown from left to sliderPos% */}
-      {leftDataUrl && (
-        <img
-          src={leftDataUrl}
-          alt={leftLabel}
-          className="absolute inset-0 h-full w-full object-contain pointer-events-none"
-          style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
-          draggable={false}
-        />
-      )}
+      {leftDataUrl &&
+        (repeatEnabled ? (
+          <RepeatTileGrid
+            dataUrl={leftDataUrl}
+            repeatAmount={repeatAmount}
+            showGrid={showGrid}
+            className="absolute inset-0 pointer-events-none"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+          />
+        ) : (
+          <img
+            src={leftDataUrl}
+            alt={leftLabel}
+            className="absolute inset-0 h-full w-full object-contain pointer-events-none"
+            style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+            draggable={false}
+          />
+        ))}
 
       {/* Drag handle */}
       <div
