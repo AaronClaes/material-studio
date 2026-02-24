@@ -8,6 +8,7 @@ import type {
   NodeKind,
   NormalmapNodeData,
   OutputNodeData,
+  QuiltingNodeData,
   ResolutionNodeData,
   StudioNode,
   StudioNodeData,
@@ -52,6 +53,11 @@ export const NODE_META: Record<
     label: 'AO Map',
     icon: 'brightness-down',
     description: 'Generate an ambient occlusion map from a height map',
+  },
+  quilting: {
+    label: 'Image Quilting',
+    icon: 'texture',
+    description: 'Synthesise a tileable texture from a sample image',
   },
   workflowNode: {
     label: 'Workflow',
@@ -139,6 +145,17 @@ function defaultData(kind: NodeKind): StudioNodeData {
         invert: false,
         live: false,
       } satisfies AomapNodeData
+    case 'quilting':
+      return {
+        kind: 'quilting',
+        label: 'Image Quilting',
+        outputWidth: 1024,
+        outputHeight: 1024,
+        patchSize: 64,
+        overlapFraction: 0.1667,
+        errorTolerance: 1.5,
+        seed: 42,
+      } satisfies QuiltingNodeData
     case 'workflowNode':
       return {
         kind: 'workflowNode',

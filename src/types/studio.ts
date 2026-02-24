@@ -14,6 +14,7 @@ export type NodeKind =
   | 'normalmap'
   | 'displacement'
   | 'aomap'
+  | 'quilting'
   | 'workflowNode'
   | 'outputNode'
 
@@ -84,6 +85,18 @@ export interface DisplacementNodeData {
   disabled?: boolean
 }
 
+export interface QuiltingNodeData {
+  kind: 'quilting'
+  label: string
+  outputWidth: number
+  outputHeight: number
+  patchSize: number
+  overlapFraction: number
+  errorTolerance: number
+  seed: number
+  disabled?: boolean
+}
+
 export interface AomapNodeData {
   kind: 'aomap'
   label: string
@@ -121,6 +134,7 @@ export type StudioNodeData = (
   | NormalmapNodeData
   | DisplacementNodeData
   | AomapNodeData
+  | QuiltingNodeData
   | WorkflowNodeData
   | OutputNodeData
 ) &

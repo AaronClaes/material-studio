@@ -6,6 +6,7 @@ import {
   processInputNode,
   processNormalmapNode,
   processOutputNode,
+  processQuiltingNode,
   processResolutionNode,
 } from './processors'
 import { getGPUDevice, gpuBufferToObjectUrl } from './gpu'
@@ -323,6 +324,19 @@ async function processNode(
       range: data.range,
       blurSharp: data.blurSharp,
       invert: data.invert,
+    })
+    const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
+    return { kind: 'image', gpuBuffer, dataUrl }
+  }
+
+  if (data.kind === 'quilting') {
+    const gpuBuffer = await processQuiltingNode(device, input, {
+      outputWidth: data.outputWidth,
+      outputHeight: data.outputHeight,
+      patchSize: data.patchSize,
+      overlapFraction: data.overlapFraction,
+      errorTolerance: data.errorTolerance,
+      seed: data.seed,
     })
     const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
     return { kind: 'image', gpuBuffer, dataUrl }

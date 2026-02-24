@@ -21,6 +21,7 @@ import {
   InputNode,
   NormalmapNode,
   OutputNode,
+  QuiltingNode,
   ResolutionNode,
   WorkflowNode,
 } from './nodes'
@@ -42,6 +43,7 @@ const nodeTypes: NodeTypes = {
   normalmap: NormalmapNode,
   displacement: DisplacementNode,
   aomap: AomapNode,
+  quilting: QuiltingNode,
   workflowNode: WorkflowNode,
 }
 

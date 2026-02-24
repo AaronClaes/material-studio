@@ -9,6 +9,7 @@ import {
   IconPhoto,
   IconPlus,
   IconSearch,
+  IconTexture,
   IconVectorTriangle,
 } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
@@ -52,12 +53,18 @@ const NODES: Array<{
   },
   { kind: 'workflowNode', icon: IconCopy, tags: ['nested', 'subgraph'] },
   { kind: 'outputNode', icon: IconDownload, tags: ['export', 'save'] },
+  {
+    kind: 'quilting',
+    icon: IconTexture,
+    tags: ['texture', 'synthesis', 'tile', 'quilting', 'sample'],
+  },
 ]
 
 const NODE_GROUPS: Array<{ label: string; kinds: Array<NodeKind> }> = [
   { label: 'Flow', kinds: ['inputNode', 'workflowNode', 'outputNode'] },
   { label: 'Adjust', kinds: ['crop', 'resolution', 'color'] },
   { label: 'Generate Maps', kinds: ['normalmap', 'displacement', 'aomap'] },
+  { label: 'Synthesise', kinds: ['quilting'] },
 ]
 
 interface FloatingAddNodeProps {
