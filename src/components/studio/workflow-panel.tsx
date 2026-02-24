@@ -1,7 +1,13 @@
 'use client'
 
 import { useRef } from 'react'
-import { IconCopy, IconPlus, IconTrash, IconUpload } from '@tabler/icons-react'
+import {
+  IconCopy,
+  IconLoader2,
+  IconPlus,
+  IconTrash,
+  IconUpload,
+} from '@tabler/icons-react'
 import { useWorkflowNameEditor } from './use-workflow-name-editor'
 import { ConfirmRemoveWorkflow } from './confirm-remove-workflow'
 import type { WorkflowDef } from '@/lib/workflow-store'
@@ -52,6 +58,7 @@ export function WorkflowPanel() {
         {workflows.map((wf) => {
           const isActive = wf.id === activeWorkflowId
           const isEditing = editingId === wf.id
+          const isRunning = wf.isRunning
 
           return (
             <ConfirmRemoveWorkflow key={wf.id} workflowId={wf.id}>
@@ -78,13 +85,19 @@ export function WorkflowPanel() {
                   />
                 ) : (
                   <span
-                    className="flex-1 min-w-0 text-sm truncate"
+                    className="flex-1 min-w-0 flex items-center gap-1.5 text-sm truncate"
                     onDoubleClick={(e) => {
                       e.stopPropagation()
                       startEdit(wf.id, wf.name)
                     }}
                   >
-                    {wf.name}
+                    <span className="truncate">{wf.name}</span>
+                    {isRunning && (
+                      <IconLoader2
+                        size={12}
+                        className="shrink-0 text-primary animate-spin"
+                      />
+                    )}
                   </span>
                 )}
 
