@@ -188,29 +188,45 @@ export function runBlurSharp(
 
     const { hPipeline, vPipeline } = getBlurPipelines(device)
 
-    // We need ping-pong buffers: input -> tmpA (H) -> tmpB (V) -> tmpA (H) -> ...
+    // Triple box blur with separate tmpH for H-pass output to avoid aliasing.
+    // vTargets alternates so V-pass output never aliases H-pass input.
     let current = heightsBuffer
+    const tmpH = createStorageBuffer(device, bufferSize)
     const tmpA = createStorageBuffer(device, bufferSize)
     const tmpB = createStorageBuffer(device, bufferSize)
+    const vTargets = [tmpA, tmpB, tmpA]
 
     const encoder = device.createCommandEncoder()
 
     for (let i = 0; i < 3; i++) {
-      const hOut = i % 2 === 0 ? tmpA : tmpB
-      const vOut = i % 2 === 0 ? tmpB : tmpA
-      blurPass(device, encoder, hPipeline, uniformBuffer, current, hOut, workgroups)
-      blurPass(device, encoder, vPipeline, uniformBuffer, hOut, vOut, workgroups)
-      current = vOut
+      blurPass(
+        device,
+        encoder,
+        hPipeline,
+        uniformBuffer,
+        current,
+        tmpH,
+        workgroups,
+      )
+      blurPass(
+        device,
+        encoder,
+        vPipeline,
+        uniformBuffer,
+        tmpH,
+        vTargets[i],
+        workgroups,
+      )
+      current = vTargets[i]
     }
 
     device.queue.submit([encoder.finish()])
 
-    // Clean up the buffer that's not the result
-    const unused = current === tmpA ? tmpB : tmpA
-    unused.destroy()
+    tmpH.destroy()
+    tmpB.destroy()
     uniformBuffer.destroy()
 
-    return current
+    return current // = tmpA after 3 passes
   } else {
     // Unsharp mask: sharpen
     const factor = blurSharp / 8
@@ -229,8 +245,24 @@ export function runBlurSharp(
     const blurred = createStorageBuffer(device, bufferSize)
 
     const encoder = device.createCommandEncoder()
-    blurPass(device, encoder, hPipeline, uniformBuffer, heightsBuffer, tmpH, workgroups)
-    blurPass(device, encoder, vPipeline, uniformBuffer, tmpH, blurred, workgroups)
+    blurPass(
+      device,
+      encoder,
+      hPipeline,
+      uniformBuffer,
+      heightsBuffer,
+      tmpH,
+      workgroups,
+    )
+    blurPass(
+      device,
+      encoder,
+      vPipeline,
+      uniformBuffer,
+      tmpH,
+      blurred,
+      workgroups,
+    )
 
     // Unsharp mask
     const unsharpData = new ArrayBuffer(8)
