@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { supportsDirectoryPicker } from '@/hooks'
 
 interface Requirement {
   id: string
@@ -32,7 +33,7 @@ function checkRequirements(): {
 
   const hasWebGPU = 'gpu' in navigator
 
-  const hasFsAccess = 'showDirectoryPicker' in window
+  const hasFsAccess = supportsDirectoryPicker
 
   const requirements: Array<Requirement> = [
     {

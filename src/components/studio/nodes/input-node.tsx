@@ -179,7 +179,6 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
     reader.onload = (ev) => {
       const src = ev.target?.result as string
       patchNodeData(activeWorkflowId, id, { src, srcFilename })
-      useWorkflowStore.getState().runNodesFrom(activeWorkflowId, id)
     }
     reader.readAsDataURL(file)
   }
