@@ -18,6 +18,7 @@ export interface RunResultItem {
 export interface WorkflowRun {
   workflowId: string
   completedAt: number
+  durationMs: number
   items: Array<RunResultItem>
 }
 

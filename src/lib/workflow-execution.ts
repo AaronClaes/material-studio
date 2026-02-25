@@ -319,6 +319,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       const wf = getWorkflow(get, workflowId)
       if (!wf || wf.isRunning) return
 
+      const startTime = Date.now()
       useRunStore.getState().clearRun(workflowId)
 
       const { nodes, edges } = wf
@@ -342,6 +343,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           useRunStore.getState().saveRun({
             workflowId,
             completedAt: Date.now(),
+            durationMs: Date.now() - startTime,
             items: allBatchItems,
           })
           const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
@@ -423,6 +425,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           useRunStore.getState().saveRun({
             workflowId,
             completedAt: Date.now(),
+            durationMs: Date.now() - startTime,
             items,
           })
           const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
