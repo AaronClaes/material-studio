@@ -1,4 +1,5 @@
 import {
+  IconClipboardList,
   IconCopy,
   IconDotsVertical,
   IconFileExport,
@@ -26,6 +27,8 @@ interface StudioToolbarProps {
   onExportWorkflow: () => void
   onDuplicateWorkflow: () => void
   canDeleteWorkflow: boolean
+  hasLatestRun: boolean
+  onViewLatestRun: () => void
 }
 
 export function StudioToolbar({
@@ -38,6 +41,8 @@ export function StudioToolbar({
   onExportWorkflow,
   onDuplicateWorkflow,
   canDeleteWorkflow,
+  hasLatestRun,
+  onViewLatestRun,
 }: StudioToolbarProps) {
   const {
     editingId,
@@ -86,6 +91,17 @@ export function StudioToolbar({
           ))}
       </div>
       <div className="h-full flex items-center gap-1 pr-2 py-2">
+        {hasLatestRun && !isRunning && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onViewLatestRun}
+            className="gap-1.5"
+          >
+            <IconClipboardList size={14} />
+            View Latest Run
+          </Button>
+        )}
         <Button
           size="sm"
           onClick={onRunWorkflow}

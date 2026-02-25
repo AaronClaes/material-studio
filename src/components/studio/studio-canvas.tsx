@@ -9,7 +9,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
 import { WorkflowPanel } from './workflow-panel'
@@ -25,6 +25,7 @@ import {
   ResolutionNode,
   WorkflowNode,
 } from './nodes'
+import { RunOverviewDialog } from './run-overview-dialog'
 import type {
   Connection,
   EdgeChange,
@@ -33,6 +34,7 @@ import type {
 } from '@xyflow/react'
 import { exportWorkflow, useWorkflowStore } from '@/lib/workflow-store'
 import { readDirectoryPreview, useDirectoryStore } from '@/lib/directory-store'
+import { useRunStore } from '@/lib/run-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -65,6 +67,20 @@ export function StudioCanvas() {
   const restoreHandles = useDirectoryStore((s) => s.restoreHandles)
 
   const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
+
+  const hasUnseenRun = useRunStore((s) =>
+    s.unseenWorkflowIds.includes(activeWorkflowId),
+  )
+  const latestRun = useRunStore((s) => s.latestRuns[activeWorkflowId] ?? null)
+  const markSeen = useRunStore((s) => s.markSeen)
+  const [overviewOpen, setOverviewOpen] = useState(false)
+
+  useEffect(() => {
+    if (hasUnseenRun) {
+      setOverviewOpen(true)
+      markSeen(activeWorkflowId)
+    }
+  }, [activeWorkflowId, hasUnseenRun, markSeen])
 
   useEffect(() => {
     const allNodes = workflows.flatMap((w) => w.nodes)
@@ -141,6 +157,14 @@ export function StudioCanvas() {
         }
         onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
         canDeleteWorkflow={workflows.length > 1}
+        hasLatestRun={!!latestRun}
+        onViewLatestRun={() => setOverviewOpen(true)}
+      />
+      <RunOverviewDialog
+        open={overviewOpen}
+        onOpenChange={setOverviewOpen}
+        run={latestRun}
+        nodes={activeWorkflow?.nodes ?? []}
       />
       <div className="flex flex-1 overflow-hidden">
         <WorkflowPanel />

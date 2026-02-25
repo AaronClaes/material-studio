@@ -29,8 +29,9 @@ export function useDirectoryPicker(mode: 'read' | 'readwrite'): {
   async function pickDirectory(): Promise<FileSystemDirectoryHandle | null> {
     try {
       return await window.showDirectoryPicker({ mode })
-    } catch {
+    } catch (error) {
       // user cancelled
+      console.error('Directory picker error', error)
       return null
     }
   }
