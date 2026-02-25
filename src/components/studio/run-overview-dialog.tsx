@@ -15,17 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-
-const HIDDEN_KEYS = new Set([
-  'kind',
-  'label',
-  'disabled',
-  'live',
-  'src',
-  'srcFilename',
-])
 
 interface RunOverviewDialogProps {
   open: boolean
@@ -149,7 +139,7 @@ export function RunOverviewDialog({
                             type="button"
                             onClick={() => setActiveKey(itemKey)}
                             className={cn(
-                              'flex items-center gap-1.5 w-full px-1 py-1 rounded text-left transition-colors',
+                              'flex items-center gap-1.5 w-full px-1 py-1 text-left transition-colors',
                               isActive ? 'bg-accent' : 'hover:bg-accent/50',
                             )}
                           >
@@ -157,10 +147,10 @@ export function RunOverviewDialog({
                               <img
                                 src={item.outputDataUrl}
                                 alt={nodeLabel(item.outputNodeId)}
-                                className="w-8 h-8 rounded object-cover shrink-0 border"
+                                className="w-8 h-8 object-cover shrink-0 border"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded bg-muted shrink-0 border" />
+                              <div className="w-8 h-8 bg-muted shrink-0 border" />
                             )}
                             <span className="text-[10px] truncate">
                               {nodeLabel(item.outputNodeId)}
@@ -192,9 +182,6 @@ export function RunOverviewDialog({
               {activeItem ? (
                 <Accordion type="multiple">
                   {activeItem.chain.map((step) => {
-                    const settings = Object.entries(step.nodeData).filter(
-                      ([k]) => !HIDDEN_KEYS.has(k),
-                    )
                     const isSelected =
                       step.nodeId ===
                       (selectedStepId ?? activeItem.chain.at(-1)?.nodeId)
@@ -216,26 +203,23 @@ export function RunOverviewDialog({
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-3 space-y-2">
                           {step.outputDataUrl && (
-                            <img
-                              onClick={() => setSelectedStepId(step.nodeId)}
-                              src={step.outputDataUrl}
-                              alt={step.nodeData.label}
-                              className="w-full aspect-square object-cover rounded border"
-                            />
-                          )}
-                          {settings.length > 0 && (
-                            <dl className="grid grid-cols-2 gap-x-2 gap-y-1">
-                              {settings.map(([k, v]) => (
-                                <div key={k} className="contents">
-                                  <dt className="text-[10px] text-muted-foreground truncate">
-                                    {k}
-                                  </dt>
-                                  <dd className="text-[10px] truncate font-mono">
-                                    {String(v)}
-                                  </dd>
+                            <div className="relative group">
+                              <img
+                                src={step.outputDataUrl}
+                                alt={step.nodeData.label}
+                                className="w-full aspect-square object-cover border "
+                              />
+                              {selectedStepId === step.nodeId ? null : (
+                                <div
+                                  onClick={() => setSelectedStepId(step.nodeId)}
+                                  className="absolute cursor-default top-0 left-0 w-full h-full bg-black/50 backdrop-blur-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition group-hover:transition-opacity"
+                                >
+                                  <p className="text-sm text-white">
+                                    View image
+                                  </p>
                                 </div>
-                              ))}
-                            </dl>
+                              )}
+                            </div>
                           )}
                         </AccordionContent>
                       </AccordionItem>
