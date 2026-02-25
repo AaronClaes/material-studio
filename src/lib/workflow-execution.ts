@@ -4,6 +4,7 @@ import { getGPUDevice } from './gpu'
 import { useDirectoryStore } from './directory-store'
 import { updateWorkflow } from './workflow-crud'
 import { useRunStore } from './run-store'
+import { notify } from './settings-store'
 import type { RunCallbacks, RunOptions } from './execution'
 import type { ExecutionResults, StudioEdge, StudioNode } from '@/types/studio'
 import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
@@ -343,6 +344,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
             completedAt: Date.now(),
             items: allBatchItems,
           })
+          const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
+          notify(`${wfName} complete`, {
+            body: `${allBatchItems.length} output(s) processed`,
+          })
         }
         return
       }
@@ -419,6 +424,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
             workflowId,
             completedAt: Date.now(),
             items,
+          })
+          const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
+          notify(`${wfName} complete`, {
+            body: `${items.length} output(s) processed`,
           })
         }
       }

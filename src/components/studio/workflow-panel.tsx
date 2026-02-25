@@ -5,9 +5,11 @@ import {
   IconCopy,
   IconLoader2,
   IconPlus,
+  IconSettings,
   IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
+import { Link } from '@tanstack/react-router'
 import { useWorkflowNameEditor } from './use-workflow-name-editor'
 import { ConfirmRemoveWorkflow } from './confirm-remove-workflow'
 import type { WorkflowDef } from '@/lib/workflow-store'
@@ -161,6 +163,12 @@ export function WorkflowPanel() {
           className="hidden"
           onChange={handleImport}
         />
+        <Button variant="ghost" size="sm" className="w-full gap-1.5 text-xs" asChild>
+          <Link to="/settings">
+            <IconSettings size={13} />
+            Settings
+          </Link>
+        </Button>
       </div>
     </div>
   )
