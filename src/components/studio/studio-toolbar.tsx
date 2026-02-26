@@ -57,16 +57,7 @@ export function StudioToolbar({
 
   return (
     <div className="flex items-center justify-between border-b bg-card">
-      <div className="w-52 border-r border-border pl-4 py-2 h-full flex items-center">
-        <img
-          src="/material-studio-logo.png"
-          alt="Material Studio"
-          className="w-6 h-6 mr-2"
-        />
-        <h1 className="text-sm font-semibold tracking-tight">
-          Material Studio
-        </h1>
-      </div>
+      <div className="w-52 border-r border-border h-full" />
       <div>
         {workflowName &&
           (isEditing ? (

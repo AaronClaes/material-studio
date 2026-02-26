@@ -9,12 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RepeatTesterRouteImport } from './routes/repeat-tester'
+import { Route as MaterialViewerRouteImport } from './routes/material-viewer'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WorkflowsRoute = WorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepeatTesterRoute = RepeatTesterRouteImport.update({
+  id: '/repeat-tester',
+  path: '/repeat-tester',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaterialViewerRoute = MaterialViewerRouteImport.update({
+  id: '/material-viewer',
+  path: '/material-viewer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,37 +43,81 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/material-viewer': typeof MaterialViewerRoute
+  '/repeat-tester': typeof RepeatTesterRoute
   '/settings': typeof SettingsRoute
+  '/workflows': typeof WorkflowsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/material-viewer': typeof MaterialViewerRoute
+  '/repeat-tester': typeof RepeatTesterRoute
   '/settings': typeof SettingsRoute
+  '/workflows': typeof WorkflowsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/material-viewer': typeof MaterialViewerRoute
+  '/repeat-tester': typeof RepeatTesterRoute
   '/settings': typeof SettingsRoute
+  '/workflows': typeof WorkflowsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings'
+  fullPaths:
+    | '/'
+    | '/material-viewer'
+    | '/repeat-tester'
+    | '/settings'
+    | '/workflows'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings'
-  id: '__root__' | '/' | '/settings'
+  to: '/' | '/material-viewer' | '/repeat-tester' | '/settings' | '/workflows'
+  id:
+    | '__root__'
+    | '/'
+    | '/material-viewer'
+    | '/repeat-tester'
+    | '/settings'
+    | '/workflows'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MaterialViewerRoute: typeof MaterialViewerRoute
+  RepeatTesterRoute: typeof RepeatTesterRoute
   SettingsRoute: typeof SettingsRoute
+  WorkflowsRoute: typeof WorkflowsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workflows': {
+      id: '/workflows'
+      path: '/workflows'
+      fullPath: '/workflows'
+      preLoaderRoute: typeof WorkflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repeat-tester': {
+      id: '/repeat-tester'
+      path: '/repeat-tester'
+      fullPath: '/repeat-tester'
+      preLoaderRoute: typeof RepeatTesterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/material-viewer': {
+      id: '/material-viewer'
+      path: '/material-viewer'
+      fullPath: '/material-viewer'
+      preLoaderRoute: typeof MaterialViewerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,7 +132,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MaterialViewerRoute: MaterialViewerRoute,
+  RepeatTesterRoute: RepeatTesterRoute,
   SettingsRoute: SettingsRoute,
+  WorkflowsRoute: WorkflowsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -144,7 +144,7 @@ export function StudioCanvas() {
   )
 
   return (
-    <div className="flex flex-col h-screen w-full">
+    <div className="flex flex-col h-full w-full">
       <StudioToolbar
         workflowId={activeWorkflowId}
         workflowName={activeWorkflow?.name ?? ''}
