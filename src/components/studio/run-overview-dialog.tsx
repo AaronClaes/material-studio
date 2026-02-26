@@ -10,8 +10,15 @@ import {
   IconDownload,
   IconLoader2,
 } from '@tabler/icons-react'
+import {
+  DEFAULT_PREVIEW_SETTINGS,
+  PreviewSettingsPanel,
+  PreviewToolbar,
+  PreviewViewport,
+} from './preview'
 import type { RunResultItem, WorkflowRun } from '@/lib/run-store'
 import type { StudioNode } from '@/types/studio'
+import type { CompareCandidate, PreviewSettings } from './preview'
 import {
   Dialog,
   DialogContent,
@@ -76,6 +83,10 @@ export function RunOverviewDialog({
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [isZipping, setIsZipping] = useState(false)
   const [accordionValue, setAccordionValue] = useState<Array<string>>([])
+  const [previewSettings, setPreviewSettings] = useState<PreviewSettings>(
+    DEFAULT_PREVIEW_SETTINGS,
+  )
+  const [showSettings, setShowSettings] = useState(false)
 
   const items = run?.items ?? []
 
@@ -120,13 +131,19 @@ export function RunOverviewDialog({
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
 
+  // Reset preview settings and selected step when active item changes
   useEffect(() => {
     setSelectedStepId(null)
+    setPreviewSettings(DEFAULT_PREVIEW_SETTINGS)
+    setShowSettings(false)
   }, [activeKey])
 
+  // Reset when run changes
   useEffect(() => {
     setActiveKey(null)
     setAccordionValue([])
+    setPreviewSettings(DEFAULT_PREVIEW_SETTINGS)
+    setShowSettings(false)
   }, [run])
 
   const displayStep =
@@ -138,6 +155,25 @@ export function RunOverviewDialog({
     const n = nodes.find((x) => x.id === nodeId)
     return n?.data.label ?? nodeId
   }
+
+  // Build compare candidates from chain steps (excluding current display step)
+  const compareCandidates = useMemo<Array<CompareCandidate>>(() => {
+    if (!activeItem) return []
+    const currentStepId = selectedStepId ?? activeItem.chain.at(-1)?.nodeId
+    return activeItem.chain
+      .filter((s) => s.nodeId !== currentStepId && s.outputDataUrl != null)
+      .map((s) => ({
+        id: s.nodeId,
+        label: s.nodeData.label,
+        dataUrl: s.outputDataUrl!,
+      }))
+  }, [activeItem, selectedStepId])
+
+  const compareCandidate = compareCandidates.find(
+    (c) => c.id === previewSettings.compareId,
+  )
+  const compareDataUrl = compareCandidate?.dataUrl ?? null
+  const compareLabel = compareCandidate?.label ?? null
 
   // Navigation
   const currentFlatIndex = useMemo(() => {
@@ -330,28 +366,55 @@ export function RunOverviewDialog({
               </div>
             </div>
 
-            {/* Middle panel — full-size preview */}
-            <div className="flex-1 relative flex items-center justify-center bg-muted/30 overflow-hidden group/preview">
-              {displayStep?.outputDataUrl ? (
-                <>
-                  <img
-                    src={displayStep.outputDataUrl}
-                    alt="Result"
-                    className="max-w-full max-h-full object-contain p-8"
+            {/* Middle panel — preview with toolbar */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <PreviewToolbar
+                settings={previewSettings}
+                onSettingsChange={(patch) =>
+                  setPreviewSettings((s) => ({ ...s, ...patch }))
+                }
+                compareCandidates={compareCandidates}
+                showSettings={showSettings}
+                onShowSettingsChange={setShowSettings}
+              />
+
+              <div className="relative flex-1 flex items-center justify-center bg-muted/30 overflow-hidden group/preview min-h-0">
+                {showSettings && (
+                  <PreviewSettingsPanel
+                    settings={previewSettings}
+                    onSettingsChange={(patch) =>
+                      setPreviewSettings((s) => ({ ...s, ...patch }))
+                    }
                   />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2 h-8 text-xs gap-1.5 opacity-0 group-hover/preview:opacity-100 transition-opacity shadow-md"
-                    onClick={downloadCurrent}
-                  >
-                    <IconDownload className="size-3.5" />
-                    Download
-                  </Button>
-                </>
-              ) : (
-                <span className="text-xs text-muted-foreground">No output</span>
-              )}
+                )}
+                {displayStep?.outputDataUrl ? (
+                  <>
+                    <PreviewViewport
+                      dataUrl={displayStep.outputDataUrl}
+                      title={displayStep.nodeData.label}
+                      settings={previewSettings}
+                      compareDataUrl={compareDataUrl}
+                      compareLabel={compareLabel}
+                      onSliderChange={(sliderPos) =>
+                        setPreviewSettings((s) => ({ ...s, sliderPos }))
+                      }
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 h-8 text-xs gap-1.5 opacity-0 group-hover/preview:opacity-100 transition-opacity shadow-md z-10"
+                      onClick={downloadCurrent}
+                    >
+                      <IconDownload className="size-3.5" />
+                      Download
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    No output
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Right panel — chain accordion */}
