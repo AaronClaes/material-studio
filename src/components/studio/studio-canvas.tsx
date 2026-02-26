@@ -144,51 +144,54 @@ export function StudioCanvas() {
   )
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <StudioToolbar
-        workflowId={activeWorkflowId}
-        workflowName={activeWorkflow?.name ?? ''}
-        onRenameWorkflow={renameWorkflow}
-        onRunWorkflow={() => run(activeWorkflowId)}
-        isRunning={isRunning}
-        canRun={canRun}
-        onExportWorkflow={() =>
-          activeWorkflow && exportWorkflow(activeWorkflow)
-        }
-        onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
-        canDeleteWorkflow={workflows.length > 1}
-        hasLatestRun={!!latestRun}
-        onViewLatestRun={() => setOverviewOpen(true)}
-      />
-      <RunOverviewDialog
-        open={overviewOpen}
-        onOpenChange={setOverviewOpen}
-        run={latestRun}
-        nodes={activeWorkflow?.nodes ?? []}
-      />
-      <div className="flex flex-1 overflow-hidden">
-        <WorkflowPanel />
-        <div className="flex-1 relative">
-          <FloatingAddNode
-            onAddNode={(node) => addNode(activeWorkflowId, node)}
-          />
-          <ReactFlow
-            key={activeWorkflowId}
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={handleConnect}
-            nodeTypes={nodeTypes}
-            defaultEdgeOptions={{ type: 'smoothstep' }}
-            fitView
-            fitViewOptions={{ padding: 0.4 }}
-            minZoom={0.1}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
+    <div className="flex h-full w-full">
+      <WorkflowPanel />
+
+      <div className="flex flex-col h-full w-full">
+        <StudioToolbar
+          workflowId={activeWorkflowId}
+          workflowName={activeWorkflow?.name ?? ''}
+          onRenameWorkflow={renameWorkflow}
+          onRunWorkflow={() => run(activeWorkflowId)}
+          isRunning={isRunning}
+          canRun={canRun}
+          onExportWorkflow={() =>
+            activeWorkflow && exportWorkflow(activeWorkflow)
+          }
+          onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
+          canDeleteWorkflow={workflows.length > 1}
+          hasLatestRun={!!latestRun}
+          onViewLatestRun={() => setOverviewOpen(true)}
+        />
+        <RunOverviewDialog
+          open={overviewOpen}
+          onOpenChange={setOverviewOpen}
+          run={latestRun}
+          nodes={activeWorkflow?.nodes ?? []}
+        />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 relative">
+            <FloatingAddNode
+              onAddNode={(node) => addNode(activeWorkflowId, node)}
+            />
+            <ReactFlow
+              key={activeWorkflowId}
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnect={handleConnect}
+              nodeTypes={nodeTypes}
+              defaultEdgeOptions={{ type: 'smoothstep' }}
+              fitView
+              fitViewOptions={{ padding: 0.4 }}
+              minZoom={0.1}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
+              <Controls />
+              <MiniMap />
+            </ReactFlow>
+          </div>
         </div>
       </div>
     </div>

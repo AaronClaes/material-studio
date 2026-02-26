@@ -57,7 +57,7 @@ export function StudioToolbar({
 
   return (
     <div className="flex items-center justify-between border-b bg-card">
-      <div className="w-52 border-r border-border h-full" />
+      <div />
       <div>
         {workflowName &&
           (isEditing ? (
