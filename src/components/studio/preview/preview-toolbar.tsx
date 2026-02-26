@@ -22,7 +22,7 @@ const COMPARE_NONE_VALUE = '__none__'
 interface PreviewToolbarProps {
   settings: PreviewSettings
   onSettingsChange: (patch: Partial<PreviewSettings>) => void
-  compareCandidates: Array<CompareCandidate>
+  compareCandidates: Array<CompareCandidate> | null
   showSettings?: boolean
   onShowSettingsChange?: (show: boolean) => void
   className?: string
@@ -42,8 +42,8 @@ export function PreviewToolbar({
 
   const isComparing =
     settings.compareId !== null &&
-    compareCandidates.some((c) => c.id === settings.compareId)
-  const hasCompareCandidates = compareCandidates.length > 0
+    compareCandidates?.some((c) => c.id === settings.compareId)
+  const hasCompareCandidates = compareCandidates && compareCandidates.length > 0
 
   function handleViewChange(view: PreviewView) {
     const patch: Partial<PreviewSettings> = { view }
@@ -64,35 +64,37 @@ export function PreviewToolbar({
       >
         {/* Left — Compare */}
         <div className="flex items-center gap-2">
-          <Select
-            value={settings.compareId ?? COMPARE_NONE_VALUE}
-            onValueChange={(val) =>
-              onSettingsChange({
-                compareId: val === COMPARE_NONE_VALUE ? null : val,
-              })
-            }
-            disabled={!hasCompareCandidates}
-          >
-            <SelectTrigger className="h-7 w-40 text-xs">
-              <SelectValue
-                placeholder={
-                  hasCompareCandidates ? 'Compare with…' : 'No candidates'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={COMPARE_NONE_VALUE} className="text-xs">
-                None
-              </SelectItem>
-              {compareCandidates.map((c) => (
-                <SelectItem key={c.id} value={c.id} className="text-xs">
-                  {c.label}
+          {compareCandidates !== null && (
+            <Select
+              value={settings.compareId ?? COMPARE_NONE_VALUE}
+              onValueChange={(val) =>
+                onSettingsChange({
+                  compareId: val === COMPARE_NONE_VALUE ? null : val,
+                })
+              }
+              disabled={!hasCompareCandidates}
+            >
+              <SelectTrigger className="h-7 w-40 text-xs">
+                <SelectValue
+                  placeholder={
+                    hasCompareCandidates ? 'Compare with…' : 'No candidates'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={COMPARE_NONE_VALUE} className="text-xs">
+                  None
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {compareCandidates.map((c) => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-          {isComparing && (
+          {compareCandidates !== null && isComparing && (
             <ToggleGroup
               type="single"
               variant="outline"

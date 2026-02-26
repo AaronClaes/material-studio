@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { IconUpload } from '@tabler/icons-react'
+import type { PreviewSettings } from '@/components/studio/preview/types'
 import {
-  PreviewToolbar,
   PreviewSettingsPanel,
+  PreviewToolbar,
 } from '@/components/studio/preview/preview-toolbar'
 import { PreviewViewport } from '@/components/studio/preview/preview-viewport'
-import {
-  DEFAULT_PREVIEW_SETTINGS,
-  type PreviewSettings,
-} from '@/components/studio/preview/types'
+import { DEFAULT_PREVIEW_SETTINGS } from '@/components/studio/preview/types'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/repeat-tester')({
@@ -55,7 +53,7 @@ function RepeatTesterPage() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) loadFile(file)
+    loadFile(file)
   }
 
   function patchSettings(patch: Partial<PreviewSettings>) {
@@ -108,7 +106,7 @@ function RepeatTesterPage() {
           <PreviewToolbar
             settings={settings}
             onSettingsChange={patchSettings}
-            compareCandidates={[]}
+            compareCandidates={null}
             showSettings={showSettings}
             onShowSettingsChange={setShowSettings}
           />
