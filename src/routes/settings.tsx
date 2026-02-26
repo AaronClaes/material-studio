@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { useSettingsStore } from '@/lib/settings-store'
+import { ModelManager } from '@/components/settings/model-manager'
 
 export const Route = createFileRoute('/settings')({ component: SettingsPage })
 
@@ -48,7 +49,10 @@ function SettingsPage() {
           <h2 className="text-sm font-medium mb-4">Notifications</h2>
 
           <div className="flex items-center justify-between mb-1">
-            <Label htmlFor="notifications-enabled" className="text-sm cursor-pointer">
+            <Label
+              htmlFor="notifications-enabled"
+              className="text-sm cursor-pointer"
+            >
               Enable browser notifications
             </Label>
             <Switch
@@ -58,12 +62,14 @@ function SettingsPage() {
             />
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Ensure your browser is allowed to send notifications in system settings.
+            Ensure your browser is allowed to send notifications in system
+            settings.
           </p>
 
           {permissionDenied && (
             <p className="text-xs text-muted-foreground mb-4">
-              Browser permission denied — update site settings to allow notifications.
+              Browser permission denied — update site settings to allow
+              notifications.
             </p>
           )}
 
@@ -81,7 +87,10 @@ function SettingsPage() {
                     setNotifications({ notifyOnWorkflowCompletion: !!checked })
                   }
                 />
-                <Label htmlFor="notify-completion" className="text-sm cursor-pointer">
+                <Label
+                  htmlFor="notify-completion"
+                  className="text-sm cursor-pointer"
+                >
                   Workflow completion
                 </Label>
               </div>
@@ -94,12 +103,25 @@ function SettingsPage() {
                     setNotifications({ notifyWhenTabActive: !!checked })
                   }
                 />
-                <Label htmlFor="notify-tab-active" className="text-sm cursor-pointer">
+                <Label
+                  htmlFor="notify-tab-active"
+                  className="text-sm cursor-pointer"
+                >
                   Send notification even when tab is active
                 </Label>
               </div>
             </div>
           )}
+        </section>
+
+        <Separator className="my-6" />
+
+        <section>
+          <h2 className="text-sm font-medium mb-4">3D Preview Models</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Upload custom GLB models to preview textures on real-world meshes.
+          </p>
+          <ModelManager />
         </section>
       </div>
     </div>

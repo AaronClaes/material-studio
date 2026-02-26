@@ -1,19 +1,29 @@
-import { Suspense, useEffect, useRef } from 'react'
-import { OrbitControls, useTexture } from '@react-three/drei'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { IconPhoto } from '@tabler/icons-react'
-import { DoubleSide, RepeatWrapping, SRGBColorSpace } from 'three'
-import type { Mesh } from 'three'
+import {
+  DoubleSide,
+  Mesh,
+  MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
+} from 'three'
+import type { Group, Material, Texture } from 'three'
 import type { Preview3DShape } from './types'
 
 export function Preview3DView({
   dataUrl,
   shape,
   textureRepeat,
+  customModelUrl,
+  selectedMaterials,
 }: {
   dataUrl: string | null
   shape: Preview3DShape
   textureRepeat: number
+  customModelUrl?: string | null
+  selectedMaterials?: Array<string>
 }) {
   if (!dataUrl) {
     return (
@@ -31,11 +41,20 @@ export function Preview3DView({
         <directionalLight position={[3, 3, 2]} intensity={1.2} />
         <directionalLight position={[-2.5, -2.5, -1.5]} intensity={0.5} />
         <Suspense fallback={null}>
-          <TexturedMesh
-            dataUrl={dataUrl}
-            shape={shape}
-            textureRepeat={textureRepeat}
-          />
+          {shape === 'custom' && customModelUrl ? (
+            <CustomModelMesh
+              dataUrl={dataUrl}
+              modelUrl={customModelUrl}
+              textureRepeat={textureRepeat}
+              selectedMaterials={selectedMaterials ?? []}
+            />
+          ) : (
+            <TexturedMesh
+              dataUrl={dataUrl}
+              shape={shape}
+              textureRepeat={textureRepeat}
+            />
+          )}
         </Suspense>
         <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
       </Canvas>
@@ -85,5 +104,74 @@ function TexturedMesh({
         side={shape === 'plane' ? DoubleSide : undefined}
       />
     </mesh>
+  )
+}
+
+function CustomModelMesh({
+  dataUrl,
+  modelUrl,
+  textureRepeat,
+  selectedMaterials,
+}: {
+  dataUrl: string
+  modelUrl: string
+  textureRepeat: number
+  selectedMaterials: Array<string>
+}) {
+  const groupRef = useRef<Group | null>(null)
+  const { scene } = useGLTF(modelUrl)
+  const texture = useTexture(dataUrl, () => {
+    texture.colorSpace = SRGBColorSpace
+    texture.wrapS = RepeatWrapping
+    texture.wrapT = RepeatWrapping
+    texture.repeat.set(textureRepeat, textureRepeat)
+    texture.needsUpdate = true
+  })
+
+  const { clonedScene, originalMaterials } = useMemo(() => {
+    const clone = scene.clone(true)
+    const originals = new Map<Mesh, Material | Array<Material>>()
+    clone.traverse((child) => {
+      if (child instanceof Mesh) {
+        originals.set(
+          child,
+          Array.isArray(child.material)
+            ? child.material.map((m) => m.clone())
+            : child.material.clone(),
+        )
+      }
+    })
+    return { clonedScene: clone, originalMaterials: originals }
+  }, [scene])
+
+  useEffect(() => {
+    const selectedSet = new Set(selectedMaterials)
+    clonedScene.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      const mesh = child
+      const origMat = originalMaterials.get(mesh)
+      if (!origMat) return
+      const originals = Array.isArray(origMat) ? origMat : [origMat]
+
+      const newMaterials = originals.map((mat, i) => {
+        const matName = mat.name || `Material ${i}`
+        if (selectedSet.has(matName)) {
+          const newMat = new MeshStandardMaterial()
+          newMat.map = texture as Texture
+          newMat.name = matName
+          newMat.needsUpdate = true
+          return newMat
+        }
+        return mat.clone()
+      })
+
+      mesh.material = Array.isArray(origMat) ? newMaterials : newMaterials[0]
+    })
+  }, [clonedScene, originalMaterials, texture, selectedMaterials])
+
+  return (
+    <group ref={groupRef} rotation={[0, 0, 0]}>
+      <primitive object={clonedScene} />
+    </group>
   )
 }

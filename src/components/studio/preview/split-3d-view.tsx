@@ -8,6 +8,8 @@ export interface Split3DViewProps {
   rightLabel: string
   shape: Preview3DShape
   textureRepeat: number
+  customModelUrl?: string | null
+  selectedMaterials?: Array<string>
 }
 
 export function Split3DView({
@@ -17,6 +19,8 @@ export function Split3DView({
   rightLabel,
   shape,
   textureRepeat,
+  customModelUrl,
+  selectedMaterials,
 }: Split3DViewProps) {
   return (
     <div className="flex h-full w-full">
@@ -25,6 +29,8 @@ export function Split3DView({
           dataUrl={leftDataUrl}
           shape={shape}
           textureRepeat={textureRepeat}
+          customModelUrl={customModelUrl}
+          selectedMaterials={selectedMaterials}
         />
         <span className="absolute bottom-2 left-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {leftLabel}
@@ -35,6 +41,8 @@ export function Split3DView({
           dataUrl={rightDataUrl}
           shape={shape}
           textureRepeat={textureRepeat}
+          customModelUrl={customModelUrl}
+          selectedMaterials={selectedMaterials}
         />
         <span className="absolute bottom-2 right-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {rightLabel} (current)

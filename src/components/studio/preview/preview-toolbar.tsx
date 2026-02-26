@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { IconChevronDown, IconSettings } from '@tabler/icons-react'
+import { useEffect, useState } from 'react'
+import { IconChevronDown, IconPlus, IconSettings } from '@tabler/icons-react'
+import { Link } from '@tanstack/react-router'
 import { TextureRepeatControl } from './texture-repeat-control'
 import type { CompareCandidate, PreviewSettings, PreviewView } from './types'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -8,11 +9,13 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { useModelStore } from '@/lib/model-store'
 
 const COMPARE_NONE_VALUE = '__none__'
 
@@ -166,6 +169,34 @@ export function PreviewSettingsPanel({
   onSettingsChange: (patch: Partial<PreviewSettings>) => void
   className?: string
 }) {
+  const { models, loaded, loadModels, updateSelectedMaterials } =
+    useModelStore()
+
+  useEffect(() => {
+    loadModels()
+  }, [loadModels])
+
+  const customModel = settings.customModelId
+    ? models.find((m) => m.id === settings.customModelId)
+    : null
+
+  function handleShapeChange(value: string) {
+    if (value.startsWith('custom:')) {
+      const modelId = value.slice(7)
+      onSettingsChange({ shape: 'custom', customModelId: modelId })
+    } else {
+      onSettingsChange({
+        shape: value as PreviewSettings['shape'],
+        customModelId: null,
+      })
+    }
+  }
+
+  const selectValue =
+    settings.shape === 'custom' && settings.customModelId
+      ? `custom:${settings.customModelId}`
+      : settings.shape
+
   return (
     <aside
       className={cn(
@@ -229,15 +260,20 @@ export function PreviewSettingsPanel({
         {settings.view === '3d' && (
           <div className="space-y-3">
             <div className="space-y-1">
-              <span className="text-xs text-muted-foreground">Geometry</span>
-              <Select
-                value={settings.shape}
-                onValueChange={(value) =>
-                  onSettingsChange({
-                    shape: value as PreviewSettings['shape'],
-                  })
-                }
-              >
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Geometry</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  asChild
+                >
+                  <Link to="/settings">
+                    <IconPlus size={12} />
+                  </Link>
+                </Button>
+              </div>
+              <Select value={selectValue} onValueChange={handleShapeChange}>
                 <SelectTrigger className="h-7 w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -251,9 +287,55 @@ export function PreviewSettingsPanel({
                   <SelectItem value="plane" className="text-xs">
                     Plane
                   </SelectItem>
+                  {loaded && models.length > 0 && (
+                    <>
+                      <SelectSeparator />
+                      {models.map((model) => (
+                        <SelectItem
+                          key={model.id}
+                          value={`custom:${model.id}`}
+                          className="text-xs"
+                        >
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
+
+            {settings.shape === 'custom' && customModel && (
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  Apply texture to
+                </span>
+                <div className="space-y-1.5">
+                  {customModel.materialNames.map((matName) => (
+                    <label
+                      key={matName}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={customModel.selectedMaterials.includes(
+                          matName,
+                        )}
+                        onCheckedChange={(checked) => {
+                          const selected = checked
+                            ? [...customModel.selectedMaterials, matName]
+                            : customModel.selectedMaterials.filter(
+                                (n) => n !== matName,
+                              )
+                          updateSelectedMaterials(customModel.id, selected)
+                        }}
+                      />
+                      <span className="text-xs truncate">{matName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <TextureRepeatControl
               label="Texture repeat"
               value={settings.textureRepeat}

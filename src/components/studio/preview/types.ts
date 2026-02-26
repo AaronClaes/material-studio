@@ -1,5 +1,5 @@
 export type PreviewView = 'image' | '3d'
-export type Preview3DShape = 'sphere' | 'cube' | 'plane'
+export type Preview3DShape = 'sphere' | 'cube' | 'plane' | 'custom'
 
 export interface CompareCandidate {
   id: string
@@ -13,6 +13,7 @@ export interface PreviewSettings {
   viewMode: 'split' | 'overlay'
   sliderPos: number
   shape: Preview3DShape
+  customModelId: string | null
   textureRepeat: number
   repeatEnabled: boolean
   repeatAmount: number
@@ -25,6 +26,7 @@ export const DEFAULT_PREVIEW_SETTINGS: PreviewSettings = {
   viewMode: 'split',
   sliderPos: 50,
   shape: 'sphere',
+  customModelId: null,
   textureRepeat: 1,
   repeatEnabled: false,
   repeatAmount: 3,

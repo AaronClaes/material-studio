@@ -1,19 +1,5 @@
 import { create } from 'zustand'
-
-const DB_NAME = 'material-studio'
-const STORE_NAME = 'directory-handles'
-const DB_VERSION = 1
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE_NAME)
-    }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
-}
+import { STORE_DIRECTORY_HANDLES as STORE_NAME, openDB } from './model-db'
 
 async function saveHandle(
   nodeId: string,
