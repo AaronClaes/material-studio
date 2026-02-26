@@ -7,7 +7,7 @@ import {
   PreviewToolbar,
 } from '@/components/studio/preview/preview-toolbar'
 import { PreviewViewport } from '@/components/studio/preview/preview-viewport'
-import { DEFAULT_PREVIEW_SETTINGS } from '@/components/studio/preview/types'
+import { useSettingsStore } from '@/lib/settings-store'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/repeat-tester')({
@@ -15,13 +15,13 @@ export const Route = createFileRoute('/repeat-tester')({
 })
 
 function RepeatTesterPage() {
+  const { previewPreferences, setPreviewPreferences } = useSettingsStore()
   const [dataUrl, setDataUrl] = useState<string | null>(null)
-  const [settings, setSettings] = useState<PreviewSettings>({
-    ...DEFAULT_PREVIEW_SETTINGS,
-    repeatEnabled: true,
-  })
+  const [sliderPos, setSliderPos] = useState(50)
   const [showSettings, setShowSettings] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+
+  const settings: PreviewSettings = { ...previewPreferences, compareId: null, viewMode: 'split', sliderPos }
 
   function loadFile(file: File) {
     if (!file.type.startsWith('image/')) return
@@ -56,8 +56,10 @@ function RepeatTesterPage() {
     loadFile(file)
   }
 
-  function patchSettings(patch: Partial<PreviewSettings>) {
-    setSettings((s) => ({ ...s, ...patch }))
+  function handleSettingsChange(patch: Partial<PreviewSettings>) {
+    const { compareId: _c, viewMode: _vm, sliderPos: sp, ...persistable } = patch
+    if (sp !== undefined) setSliderPos(sp)
+    if (Object.keys(persistable).length > 0) setPreviewPreferences(persistable)
   }
 
   return (
@@ -105,7 +107,7 @@ function RepeatTesterPage() {
         <div className="flex h-full flex-col">
           <PreviewToolbar
             settings={settings}
-            onSettingsChange={patchSettings}
+            onSettingsChange={handleSettingsChange}
             compareCandidates={null}
             showSettings={showSettings}
             onShowSettingsChange={setShowSettings}
@@ -114,7 +116,7 @@ function RepeatTesterPage() {
             {showSettings && (
               <PreviewSettingsPanel
                 settings={settings}
-                onSettingsChange={patchSettings}
+                onSettingsChange={handleSettingsChange}
               />
             )}
             <PreviewViewport
@@ -123,7 +125,7 @@ function RepeatTesterPage() {
               settings={settings}
               compareDataUrl={null}
               compareLabel={null}
-              onSliderChange={(pos) => patchSettings({ sliderPos: pos })}
+              onSliderChange={setSliderPos}
             />
             {isDragging && (
               <div className="pointer-events-none absolute inset-0 border-2 border-dashed border-primary bg-primary/10" />

@@ -11,7 +11,6 @@ import {
   IconLoader2,
 } from '@tabler/icons-react'
 import {
-  DEFAULT_PREVIEW_SETTINGS,
   PreviewSettingsPanel,
   PreviewToolbar,
   PreviewViewport,
@@ -19,6 +18,7 @@ import {
 import type { RunResultItem, WorkflowRun } from '@/lib/run-store'
 import type { StudioNode } from '@/types/studio'
 import type { CompareCandidate, PreviewSettings } from './preview'
+import { useSettingsStore } from '@/lib/settings-store'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +45,18 @@ interface ResultGroup {
   inputFilename: string
   inputNodeId: string
   items: Array<RunResultItem>
+}
+
+interface EphemeralState {
+  compareId: string | null
+  viewMode: 'split' | 'overlay'
+  sliderPos: number
+}
+
+const DEFAULT_EPHEMERAL: EphemeralState = {
+  compareId: null,
+  viewMode: 'split',
+  sliderPos: 50,
 }
 
 function formatDuration(ms: number): string {
@@ -80,12 +92,11 @@ export function RunOverviewDialog({
   run,
   nodes,
 }: RunOverviewDialogProps) {
+  const { previewPreferences, setPreviewPreferences } = useSettingsStore()
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [isZipping, setIsZipping] = useState(false)
   const [accordionValue, setAccordionValue] = useState<Array<string>>([])
-  const [previewSettings, setPreviewSettings] = useState<PreviewSettings>(
-    DEFAULT_PREVIEW_SETTINGS,
-  )
+  const [ephemeral, setEphemeral] = useState<EphemeralState>(DEFAULT_EPHEMERAL)
   const [showSettings, setShowSettings] = useState(false)
 
   const items = run?.items ?? []
@@ -131,18 +142,33 @@ export function RunOverviewDialog({
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
 
-  // Reset preview settings and selected step when active item changes
+  function handlePreviewSettingsChange(patch: Partial<PreviewSettings>) {
+    const { compareId, viewMode, sliderPos, ...persistable } = patch
+    if (compareId !== undefined || viewMode !== undefined || sliderPos !== undefined) {
+      setEphemeral((s) => ({
+        ...s,
+        ...(compareId !== undefined && { compareId }),
+        ...(viewMode !== undefined && { viewMode }),
+        ...(sliderPos !== undefined && { sliderPos }),
+      }))
+    }
+    if (Object.keys(persistable).length > 0) {
+      setPreviewPreferences(persistable)
+    }
+  }
+
+  // Reset ephemeral fields when active item changes
   useEffect(() => {
     setSelectedStepId(null)
-    setPreviewSettings(DEFAULT_PREVIEW_SETTINGS)
+    setEphemeral(DEFAULT_EPHEMERAL)
     setShowSettings(false)
   }, [activeKey])
 
-  // Reset when run changes
+  // Reset ephemeral fields when run changes
   useEffect(() => {
     setActiveKey(null)
     setAccordionValue([])
-    setPreviewSettings(DEFAULT_PREVIEW_SETTINGS)
+    setEphemeral(DEFAULT_EPHEMERAL)
     setShowSettings(false)
   }, [run])
 
@@ -169,8 +195,10 @@ export function RunOverviewDialog({
       }))
   }, [activeItem, selectedStepId])
 
+  const previewSettings: PreviewSettings = { ...previewPreferences, ...ephemeral }
+
   const compareCandidate = compareCandidates.find(
-    (c) => c.id === previewSettings.compareId,
+    (c) => c.id === ephemeral.compareId,
   )
   const compareDataUrl = compareCandidate?.dataUrl ?? null
   const compareLabel = compareCandidate?.label ?? null
@@ -370,9 +398,7 @@ export function RunOverviewDialog({
             <div className="flex-1 flex flex-col overflow-hidden">
               <PreviewToolbar
                 settings={previewSettings}
-                onSettingsChange={(patch) =>
-                  setPreviewSettings((s) => ({ ...s, ...patch }))
-                }
+                onSettingsChange={handlePreviewSettingsChange}
                 compareCandidates={compareCandidates}
                 showSettings={showSettings}
                 onShowSettingsChange={setShowSettings}
@@ -382,9 +408,7 @@ export function RunOverviewDialog({
                 {showSettings && (
                   <PreviewSettingsPanel
                     settings={previewSettings}
-                    onSettingsChange={(patch) =>
-                      setPreviewSettings((s) => ({ ...s, ...patch }))
-                    }
+                    onSettingsChange={handlePreviewSettingsChange}
                   />
                 )}
                 {displayStep?.outputDataUrl ? (
@@ -396,7 +420,7 @@ export function RunOverviewDialog({
                       compareDataUrl={compareDataUrl}
                       compareLabel={compareLabel}
                       onSliderChange={(sliderPos) =>
-                        setPreviewSettings((s) => ({ ...s, sliderPos }))
+                        setEphemeral((s) => ({ ...s, sliderPos }))
                       }
                     />
                     <Button

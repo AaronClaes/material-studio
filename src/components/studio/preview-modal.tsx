@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  DEFAULT_PREVIEW_SETTINGS,
   PreviewSettingsPanel,
   PreviewToolbar,
   PreviewViewport,
@@ -14,8 +13,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useActiveWorkflow } from '@/lib/workflow-store'
+import { useSettingsStore } from '@/lib/settings-store'
 
 export type { PreviewView }
+
+interface EphemeralState {
+  compareId: string | null
+  viewMode: 'split' | 'overlay'
+  sliderPos: number
+}
+
+const DEFAULT_EPHEMERAL: EphemeralState = {
+  compareId: null,
+  viewMode: 'split',
+  sliderPos: 50,
+}
 
 interface PreviewModalProps {
   open: boolean
@@ -36,9 +48,8 @@ export function PreviewModal({
   activeView = 'image',
   onViewChange,
 }: PreviewModalProps) {
-  const [settings, setSettings] = useState<PreviewSettings>(
-    DEFAULT_PREVIEW_SETTINGS,
-  )
+  const { previewPreferences, setPreviewPreferences } = useSettingsStore()
+  const [ephemeral, setEphemeral] = useState<EphemeralState>(DEFAULT_EPHEMERAL)
   const [showSettings, setShowSettings] = useState(false)
 
   const workflow = useActiveWorkflow()
@@ -61,38 +72,44 @@ export function PreviewModal({
   }, [workflow, nodeId])
 
   const compareCandidate = compareCandidates.find(
-    (c) => c.id === settings.compareId,
+    (c) => c.id === ephemeral.compareId,
   )
   const compareDataUrl = compareCandidate?.dataUrl ?? null
   const compareLabel = compareCandidate?.label ?? null
 
-  // Sync external view control
-  const currentView = onViewChange ? activeView : settings.view
+  // Reset ephemeral fields on close
   useEffect(() => {
-    if (onViewChange && settings.view !== activeView) {
-      setSettings((s) => ({ ...s, view: activeView }))
+    if (!open) {
+      setEphemeral(DEFAULT_EPHEMERAL)
+      setShowSettings(false)
     }
-  }, [activeView, onViewChange])
+  }, [open])
+
+  const currentView = onViewChange ? activeView : previewPreferences.view
 
   function handleSettingsChange(patch: Partial<PreviewSettings>) {
     if (patch.view != null && onViewChange) {
       onViewChange(patch.view)
     }
-    setSettings((s) => ({ ...s, ...patch }))
+    const { compareId, viewMode, sliderPos, ...persistable } = patch
+    if (compareId !== undefined || viewMode !== undefined || sliderPos !== undefined) {
+      setEphemeral((s) => ({
+        ...s,
+        ...(compareId !== undefined && { compareId }),
+        ...(viewMode !== undefined && { viewMode }),
+        ...(sliderPos !== undefined && { sliderPos }),
+      }))
+    }
+    if (Object.keys(persistable).length > 0) {
+      setPreviewPreferences(persistable)
+    }
   }
 
-  // Reset on close
-  useEffect(() => {
-    if (!open) {
-      setSettings((s) => ({
-        ...DEFAULT_PREVIEW_SETTINGS,
-        view: onViewChange ? s.view : 'image',
-      }))
-      setShowSettings(false)
-    }
-  }, [onViewChange, open])
-
-  const effectiveSettings = { ...settings, view: currentView }
+  const settings: PreviewSettings = {
+    ...previewPreferences,
+    ...ephemeral,
+    view: currentView,
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +128,7 @@ export function PreviewModal({
         </DialogHeader>
 
         <PreviewToolbar
-          settings={effectiveSettings}
+          settings={settings}
           onSettingsChange={handleSettingsChange}
           compareCandidates={compareCandidates}
           showSettings={showSettings}
@@ -121,19 +138,17 @@ export function PreviewModal({
         <div className="relative flex min-h-0 flex-1 bg-muted/40">
           {showSettings && (
             <PreviewSettingsPanel
-              settings={effectiveSettings}
+              settings={settings}
               onSettingsChange={handleSettingsChange}
             />
           )}
           <PreviewViewport
             dataUrl={dataUrl}
             title={title}
-            settings={effectiveSettings}
+            settings={settings}
             compareDataUrl={compareDataUrl}
             compareLabel={compareLabel}
-            onSliderChange={(sliderPos) =>
-              setSettings((s) => ({ ...s, sliderPos }))
-            }
+            onSliderChange={(sliderPos) => setEphemeral((s) => ({ ...s, sliderPos }))}
           />
         </div>
       </DialogContent>
