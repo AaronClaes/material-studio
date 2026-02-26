@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { useSettingsStore } from '@/lib/settings-store'
 import { ModelManager } from '@/components/settings/model-manager'
+import { EnvironmentManager } from '@/components/settings/environment-manager'
 
 export const Route = createFileRoute('/settings')({ component: SettingsPage })
 
@@ -122,6 +123,16 @@ function SettingsPage() {
             Upload custom GLB models to preview textures on real-world meshes.
           </p>
           <ModelManager />
+        </section>
+
+        <Separator className="my-6" />
+
+        <section>
+          <h2 className="text-sm font-medium mb-4">3D Preview Environments</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Upload custom HDRI or image files to use as environment lighting.
+          </p>
+          <EnvironmentManager />
         </section>
       </div>
     </div>

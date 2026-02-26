@@ -10,6 +10,7 @@ export interface Split3DViewProps {
   textureRepeat: number
   customModelUrl?: string | null
   selectedMaterials?: Array<string>
+  environmentFile?: string
 }
 
 export function Split3DView({
@@ -21,6 +22,7 @@ export function Split3DView({
   textureRepeat,
   customModelUrl,
   selectedMaterials,
+  environmentFile,
 }: Split3DViewProps) {
   return (
     <div className="flex h-full w-full">
@@ -31,6 +33,7 @@ export function Split3DView({
           textureRepeat={textureRepeat}
           customModelUrl={customModelUrl}
           selectedMaterials={selectedMaterials}
+          environmentFile={environmentFile}
         />
         <span className="absolute bottom-2 left-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {leftLabel}
@@ -43,6 +46,7 @@ export function Split3DView({
           textureRepeat={textureRepeat}
           customModelUrl={customModelUrl}
           selectedMaterials={selectedMaterials}
+          environmentFile={environmentFile}
         />
         <span className="absolute bottom-2 right-2 border border-border/50 bg-background/70 px-1.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
           {rightLabel} (current)

@@ -7,6 +7,14 @@ import { Split3DView } from './split-3d-view'
 import { OverlayView } from './overlay-view'
 import type { PreviewSettings } from './types'
 import { useModelStore } from '@/lib/model-store'
+import { useEnvironmentStore } from '@/lib/environment-store'
+
+const PRESET_ENV_FILES: Record<string, string> = {
+  sky: '/hdri/sky-env.jpg',
+  city: '/hdri/city-env.jpg',
+  outdoor: '/hdri/outdoor-env.jpg',
+  studio: '/hdri/studio-env.jpg',
+}
 
 interface PreviewViewportProps {
   dataUrl: string | null
@@ -27,7 +35,9 @@ export function PreviewViewport({
 }: PreviewViewportProps) {
   const isComparing = settings.compareId !== null && compareDataUrl !== null
   const { models, getBlobUrl } = useModelStore()
+  const { environments, getDataUrl: getEnvDataUrl } = useEnvironmentStore()
   const [customModelUrl, setCustomModelUrl] = useState<string | null>(null)
+  const [environmentFile, setEnvironmentFile] = useState('/hdri/sky-env.jpg')
 
   const customModel =
     settings.shape === 'custom' && settings.customModelId
@@ -42,6 +52,18 @@ export function PreviewViewport({
     getBlobUrl(settings.customModelId).then(setCustomModelUrl)
   }, [settings.customModelId, settings.shape, getBlobUrl])
 
+  useEffect(() => {
+    const envId = settings.environmentId ?? 'sky'
+    if (envId.startsWith('custom:')) {
+      const id = envId.slice(7)
+      getEnvDataUrl(id).then((url) => {
+        if (url) setEnvironmentFile(url)
+      })
+    } else {
+      setEnvironmentFile(PRESET_ENV_FILES[envId])
+    }
+  }, [settings.environmentId, environments, getEnvDataUrl])
+
   if (settings.view === '3d') {
     if (isComparing) {
       return (
@@ -54,6 +76,7 @@ export function PreviewViewport({
           textureRepeat={settings.textureRepeat}
           customModelUrl={customModelUrl}
           selectedMaterials={customModel?.selectedMaterials}
+          environmentFile={environmentFile}
         />
       )
     }
@@ -65,6 +88,7 @@ export function PreviewViewport({
           textureRepeat={settings.textureRepeat}
           customModelUrl={customModelUrl}
           selectedMaterials={customModel?.selectedMaterials}
+          environmentFile={environmentFile}
         />
       </div>
     )

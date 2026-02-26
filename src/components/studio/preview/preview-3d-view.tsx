@@ -1,6 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { OrbitControls, useGLTF, useTexture } from '@react-three/drei'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef } from 'react'
+import {
+  Environment,
+  OrbitControls,
+  useGLTF,
+  useTexture,
+} from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
 import { IconPhoto } from '@tabler/icons-react'
 import {
   DoubleSide,
@@ -18,12 +23,14 @@ export function Preview3DView({
   textureRepeat,
   customModelUrl,
   selectedMaterials,
+  environmentFile,
 }: {
   dataUrl: string | null
   shape: Preview3DShape
   textureRepeat: number
   customModelUrl?: string | null
   selectedMaterials?: Array<string>
+  environmentFile?: string
 }) {
   if (!dataUrl) {
     return (
@@ -37,10 +44,8 @@ export function Preview3DView({
   return (
     <div className="h-full w-full overflow-hidden border border-border/60 bg-background/60">
       <Canvas camera={{ position: [0, 0, 3.3], fov: 45 }} dpr={[1, 2]}>
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[3, 3, 2]} intensity={1.2} />
-        <directionalLight position={[-2.5, -2.5, -1.5]} intensity={0.5} />
         <Suspense fallback={null}>
+          <DeferredEnvironment file={environmentFile ?? '/hdri/sky-env.jpg'} />
           {shape === 'custom' && customModelUrl ? (
             <CustomModelMesh
               dataUrl={dataUrl}
@@ -55,11 +60,16 @@ export function Preview3DView({
               textureRepeat={textureRepeat}
             />
           )}
+          <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
         </Suspense>
-        <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
       </Canvas>
     </div>
   )
+}
+
+function DeferredEnvironment({ file }: { file: string }) {
+  const deferredEnvironmentFile = useDeferredValue(file)
+  return <Environment files={[deferredEnvironmentFile]} />
 }
 
 function TexturedMesh({
@@ -81,11 +91,6 @@ function TexturedMesh({
     texture.repeat.set(textureRepeat, textureRepeat)
     texture.needsUpdate = true
   }, [texture, textureRepeat])
-
-  useFrame((_, delta) => {
-    if (!meshRef.current) return
-    meshRef.current.rotation.y += delta * 0.2
-  })
 
   return (
     <mesh

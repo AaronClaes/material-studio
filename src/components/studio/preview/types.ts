@@ -18,6 +18,7 @@ export interface PreviewSettings {
   repeatEnabled: boolean
   repeatAmount: number
   showGrid: boolean
+  environmentId: string
 }
 
 export const DEFAULT_PREVIEW_SETTINGS: PreviewSettings = {
@@ -31,4 +32,5 @@ export const DEFAULT_PREVIEW_SETTINGS: PreviewSettings = {
   repeatEnabled: false,
   repeatAmount: 3,
   showGrid: false,
+  environmentId: 'sky',
 }

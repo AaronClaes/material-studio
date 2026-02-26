@@ -16,6 +16,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { useModelStore } from '@/lib/model-store'
+import { useEnvironmentStore } from '@/lib/environment-store'
+import { Separator } from '@/components/ui/separator'
 
 const COMPARE_NONE_VALUE = '__none__'
 
@@ -173,10 +175,19 @@ export function PreviewSettingsPanel({
 }) {
   const { models, loaded, loadModels, updateSelectedMaterials } =
     useModelStore()
+  const {
+    environments,
+    loaded: envsLoaded,
+    loadEnvironments,
+  } = useEnvironmentStore()
 
   useEffect(() => {
     loadModels()
   }, [loadModels])
+
+  useEffect(() => {
+    loadEnvironments()
+  }, [loadEnvironments])
 
   const customModel = settings.customModelId
     ? models.find((m) => m.id === settings.customModelId)
@@ -337,6 +348,64 @@ export function PreviewSettingsPanel({
                 </div>
               </div>
             )}
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  Environment
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  asChild
+                >
+                  <Link to="/settings">
+                    <IconPlus size={12} />
+                  </Link>
+                </Button>
+              </div>
+              <Select
+                value={settings.environmentId}
+                onValueChange={(value) =>
+                  onSettingsChange({ environmentId: value })
+                }
+              >
+                <SelectTrigger className="h-7 w-full text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sky" className="text-xs">
+                    Sky
+                  </SelectItem>
+                  <SelectItem value="city" className="text-xs">
+                    City
+                  </SelectItem>
+                  <SelectItem value="outdoor" className="text-xs">
+                    Outdoor
+                  </SelectItem>
+                  <SelectItem value="studio" className="text-xs">
+                    Studio
+                  </SelectItem>
+                  {envsLoaded && environments.length > 0 && (
+                    <>
+                      <SelectSeparator />
+                      {environments.map((env) => (
+                        <SelectItem
+                          key={env.id}
+                          value={`custom:${env.id}`}
+                          className="text-xs"
+                        >
+                          {env.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
 
             <TextureRepeatControl
               label="Texture repeat"
