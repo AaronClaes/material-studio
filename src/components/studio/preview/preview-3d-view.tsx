@@ -17,6 +17,29 @@ import {
 import type { Group, Material, Texture } from 'three'
 import type { Preview3DShape } from './types'
 
+export function DeferredEnvironment({ file }: { file: string }) {
+  const deferredEnvironmentFile = useDeferredValue(file)
+  return <Environment files={[deferredEnvironmentFile]} />
+}
+
+export function Preview3DCanvas({
+  children,
+  environmentFile,
+}: {
+  children: React.ReactNode
+  environmentFile: string
+}) {
+  return (
+    <Canvas camera={{ position: [0, 0, 3.3], fov: 45 }} dpr={[1, 2]}>
+      <Suspense fallback={null}>
+        <DeferredEnvironment file={environmentFile} />
+        {children}
+        <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
+      </Suspense>
+    </Canvas>
+  )
+}
+
 export function Preview3DView({
   dataUrl,
   shape,
@@ -43,33 +66,24 @@ export function Preview3DView({
 
   return (
     <div className="h-full w-full overflow-hidden border border-border/60 bg-background/60">
-      <Canvas camera={{ position: [0, 0, 3.3], fov: 45 }} dpr={[1, 2]}>
-        <Suspense fallback={null}>
-          <DeferredEnvironment file={environmentFile ?? '/hdri/sky-env.jpg'} />
-          {shape === 'custom' && customModelUrl ? (
-            <CustomModelMesh
-              dataUrl={dataUrl}
-              modelUrl={customModelUrl}
-              textureRepeat={textureRepeat}
-              selectedMaterials={selectedMaterials ?? []}
-            />
-          ) : (
-            <TexturedMesh
-              dataUrl={dataUrl}
-              shape={shape}
-              textureRepeat={textureRepeat}
-            />
-          )}
-          <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
-        </Suspense>
-      </Canvas>
+      <Preview3DCanvas environmentFile={environmentFile ?? '/hdri/sky-env.jpg'}>
+        {shape === 'custom' && customModelUrl ? (
+          <CustomModelMesh
+            dataUrl={dataUrl}
+            modelUrl={customModelUrl}
+            textureRepeat={textureRepeat}
+            selectedMaterials={selectedMaterials ?? []}
+          />
+        ) : (
+          <TexturedMesh
+            dataUrl={dataUrl}
+            shape={shape}
+            textureRepeat={textureRepeat}
+          />
+        )}
+      </Preview3DCanvas>
     </div>
   )
-}
-
-function DeferredEnvironment({ file }: { file: string }) {
-  const deferredEnvironmentFile = useDeferredValue(file)
-  return <Environment files={[deferredEnvironmentFile]} />
 }
 
 function TexturedMesh({
