@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Suspense, lazy } from 'react'
 
-import { RequirementsCheck } from '@/components/studio/requirements-check'
+import { RequirementsCheck } from '@/features/workflow/components/requirements-check'
 
 const StudioCanvas = lazy(() =>
-  import('@/components/studio/studio-canvas').then((m) => ({
+  import('@/features/workflow/components/studio-canvas').then((m) => ({
     default: m.StudioCanvas,
   })),
 )
