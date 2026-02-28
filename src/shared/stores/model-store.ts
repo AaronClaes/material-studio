@@ -1,18 +1,15 @@
 import { create } from 'zustand'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Mesh } from 'three'
-import { STORE_CUSTOM_MODELS, openDB } from './indexed-db'
+import { FileCollection } from '../lib/opfs'
 import type { Material } from 'three'
 
 export interface CustomModelMeta {
   id: string
   name: string
+  fileName: string
   materialNames: Array<string>
   selectedMaterials: Array<string>
-}
-
-interface CustomModelRecord extends CustomModelMeta {
-  data: ArrayBuffer
 }
 
 interface ModelStore {
@@ -25,6 +22,8 @@ interface ModelStore {
   updateSelectedMaterials: (id: string, selected: Array<string>) => void
   getBlobUrl: (id: string) => Promise<string | null>
 }
+
+const collection = new FileCollection('models')
 
 function extractMaterialNames(data: ArrayBuffer): Promise<Array<string>> {
   return new Promise((resolve, reject) => {
@@ -62,53 +61,6 @@ function extractMaterialNames(data: ArrayBuffer): Promise<Array<string>> {
   })
 }
 
-async function saveRecord(record: CustomModelRecord): Promise<void> {
-  const db = await openDB()
-  const tx = db.transaction(STORE_CUSTOM_MODELS, 'readwrite')
-  tx.objectStore(STORE_CUSTOM_MODELS).put(record)
-  db.close()
-}
-
-async function deleteRecord(id: string): Promise<void> {
-  const db = await openDB()
-  const tx = db.transaction(STORE_CUSTOM_MODELS, 'readwrite')
-  tx.objectStore(STORE_CUSTOM_MODELS).delete(id)
-  db.close()
-}
-
-async function loadAllRecords(): Promise<Array<CustomModelRecord>> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_MODELS, 'readonly')
-    const request = tx.objectStore(STORE_CUSTOM_MODELS).getAll()
-    request.onsuccess = () => {
-      db.close()
-      resolve(request.result as Array<CustomModelRecord>)
-    }
-    request.onerror = () => {
-      db.close()
-      reject(request.error)
-    }
-  })
-}
-
-async function loadRecordData(id: string): Promise<ArrayBuffer | null> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_CUSTOM_MODELS, 'readonly')
-    const request = tx.objectStore(STORE_CUSTOM_MODELS).get(id)
-    request.onsuccess = () => {
-      db.close()
-      const record = request.result as CustomModelRecord | undefined
-      resolve(record?.data ?? null)
-    }
-    request.onerror = () => {
-      db.close()
-      reject(request.error)
-    }
-  })
-}
-
 export const useModelStore = create<ModelStore>((set, get) => ({
   models: [],
   blobUrls: {},
@@ -117,16 +69,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   loadModels: async () => {
     if (get().loaded) return
     try {
-      const records = await loadAllRecords()
-      const models: Array<CustomModelMeta> = records.map(
-        ({ id, name, materialNames, selectedMaterials }) => ({
-          id,
-          name,
-          materialNames,
-          selectedMaterials,
-        }),
-      )
-      set({ models, loaded: true })
+      const meta = await collection.readMeta<Array<CustomModelMeta>>()
+      set({ models: meta ?? [], loaded: true })
     } catch {
       set({ loaded: true })
     }
@@ -137,25 +81,26 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const materialNames = await extractMaterialNames(data.slice(0))
     const id = crypto.randomUUID()
     const name = file.name.replace(/\.glb$/i, '')
-    const record: CustomModelRecord = {
-      id,
-      name,
-      materialNames,
-      selectedMaterials: [...materialNames],
-      data,
-    }
-    await saveRecord(record)
+    const fileName = `${id}.glb`
+
     const meta: CustomModelMeta = {
       id,
       name,
+      fileName,
       materialNames,
       selectedMaterials: [...materialNames],
     }
+
+    await collection.writeFile(fileName, file)
+    const existing = (await collection.readMeta<Array<CustomModelMeta>>()) ?? []
+    await collection.writeMeta([...existing, meta])
+
     set((s) => ({ models: [...s.models, meta] }))
   },
 
   removeModel: (id: string) => {
-    const { blobUrls } = get()
+    const { blobUrls, models } = get()
+    const model = models.find((m) => m.id === id)
     if (blobUrls[id]) {
       URL.revokeObjectURL(blobUrls[id])
     }
@@ -165,7 +110,19 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         Object.entries(s.blobUrls).filter(([k]) => k !== id),
       ),
     }))
-    deleteRecord(id).catch(() => {})
+    if (model) {
+      Promise.all([
+        collection.deleteFile(model.fileName).catch(() => {}),
+        collection
+          .readMeta<Array<CustomModelMeta>>()
+          .then((meta) =>
+            collection.writeMeta(
+              (meta ?? []).filter((m) => m.id !== id),
+            ),
+          )
+          .catch(() => {}),
+      ])
+    }
   },
 
   updateSelectedMaterials: (id: string, selected: Array<string>) => {
@@ -174,27 +131,25 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         m.id === id ? { ...m, selectedMaterials: selected } : m,
       ),
     }))
-    // Persist the change to IDB
-    const model = get().models.find((m) => m.id === id)
-    if (model) {
-      loadRecordData(id).then((data) => {
-        if (data) {
-          saveRecord({ ...model, selectedMaterials: selected, data }).catch(
-            () => {},
-          )
-        }
+    collection
+      .readMeta<Array<CustomModelMeta>>()
+      .then((meta) => {
+        if (!meta) return
+        const updated = meta.map((m) =>
+          m.id === id ? { ...m, selectedMaterials: selected } : m,
+        )
+        return collection.writeMeta(updated)
       })
-    }
+      .catch(() => {})
   },
 
   getBlobUrl: async (id: string) => {
     const existing = get().blobUrls[id]
     if (existing) return existing
     try {
-      const data = await loadRecordData(id)
-      if (!data) return null
-      const blob = new Blob([data], { type: 'model/gltf-binary' })
-      const url = URL.createObjectURL(blob)
+      const model = get().models.find((m) => m.id === id)
+      if (!model) return null
+      const url = await collection.getFileUrl(model.fileName)
       set((s) => ({ blobUrls: { ...s.blobUrls, [id]: url } }))
       return url
     } catch {

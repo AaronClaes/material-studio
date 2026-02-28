@@ -11,19 +11,19 @@ export const PRESET_ENV_FILES: Record<string, string> = {
 }
 
 export function useEnvironmentFile(environmentId: string): string {
-  const { environments, getDataUrl: getEnvDataUrl } = useEnvironmentStore()
+  const { environments, getBlobUrl: getEnvBlobUrl } = useEnvironmentStore()
   const [environmentFile, setEnvironmentFile] = useState('/hdri/sky-env.jpg')
 
   useEffect(() => {
     if (environmentId.startsWith('custom:')) {
       const id = environmentId.slice(7)
-      getEnvDataUrl(id).then((url) => {
+      getEnvBlobUrl(id).then((url) => {
         if (url) setEnvironmentFile(url)
       })
     } else {
       setEnvironmentFile(PRESET_ENV_FILES[environmentId] ?? '/hdri/sky-env.jpg')
     }
-  }, [environmentId, environments, getEnvDataUrl])
+  }, [environmentId, environments, getEnvBlobUrl])
 
   return environmentFile
 }

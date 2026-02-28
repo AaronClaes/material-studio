@@ -1,15 +1,9 @@
 const DB_NAME = 'material-studio'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 const STORE_DIRECTORY_HANDLES = 'directory-handles'
-const STORE_CUSTOM_MODELS = 'custom-models'
-const STORE_CUSTOM_ENVIRONMENTS = 'custom-environments'
 
-export {
-  STORE_DIRECTORY_HANDLES,
-  STORE_CUSTOM_MODELS,
-  STORE_CUSTOM_ENVIRONMENTS,
-}
+export { STORE_DIRECTORY_HANDLES }
 
 export function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -19,11 +13,12 @@ export function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_DIRECTORY_HANDLES)) {
         db.createObjectStore(STORE_DIRECTORY_HANDLES)
       }
-      if (!db.objectStoreNames.contains(STORE_CUSTOM_MODELS)) {
-        db.createObjectStore(STORE_CUSTOM_MODELS, { keyPath: 'id' })
+      // Remove old stores that have been migrated to OPFS
+      if (db.objectStoreNames.contains('custom-models')) {
+        db.deleteObjectStore('custom-models')
       }
-      if (!db.objectStoreNames.contains(STORE_CUSTOM_ENVIRONMENTS)) {
-        db.createObjectStore(STORE_CUSTOM_ENVIRONMENTS, { keyPath: 'id' })
+      if (db.objectStoreNames.contains('custom-environments')) {
+        db.deleteObjectStore('custom-environments')
       }
     }
     request.onsuccess = () => resolve(request.result)
