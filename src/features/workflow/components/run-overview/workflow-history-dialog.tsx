@@ -1,23 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { IconDownload, IconLoader2, IconTrash } from '@tabler/icons-react'
-import { useRunNavigation } from './use-run-navigation'
-import { RunResultsSidebar } from './run-results-sidebar'
+import { ResultItemSidebar } from './result-item-sidebar'
 import { RunChainPanel } from './run-chain-panel'
 import { downloadAll, downloadCurrent } from './run-download'
 import { RunHistoryPanel } from './run-history-panel'
 import type { StudioNode } from '@/features/workflow/types'
-import type {
-  CompareCandidate,
-  PreviewSettings,
-} from '@/features/preview/components'
 import {
   PreviewSettingsPanel,
   PreviewToolbar,
   PreviewViewport,
 } from '@/features/preview/components'
-import { useSettingsStore } from '@/shared/stores/settings-store'
 import {
   Dialog,
   DialogContent,
@@ -26,7 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/features/workflow/lib/run-utils'
-import { useRunHistory } from '@/features/workflow/hooks/use-run-history'
+import { useRunOverview } from '@/features/workflow/hooks/use-run-overview'
 
 interface WorkflowHistoryDialogProps {
   open: boolean
@@ -35,113 +29,42 @@ interface WorkflowHistoryDialogProps {
   nodes: Array<StudioNode>
 }
 
-interface EphemeralState {
-  compareId: string | null
-  viewMode: 'split' | 'overlay'
-  sliderPos: number
-}
-
-const DEFAULT_EPHEMERAL: EphemeralState = {
-  compareId: null,
-  viewMode: 'split',
-  sliderPos: 50,
-}
-
 export function WorkflowHistoryDialog({
   open,
   onOpenChange,
   workflowId,
   nodes,
 }: WorkflowHistoryDialogProps) {
-  const { previewPreferences, setPreviewPreferences } = useSettingsStore()
   const [isZipping, setIsZipping] = useState(false)
-  const [ephemeral, setEphemeral] = useState<EphemeralState>(DEFAULT_EPHEMERAL)
-  const [showSettings, setShowSettings] = useState(false)
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
 
   const {
     metaList,
-    isLoading,
+    isHydrating,
     selectedRunId,
     selectRun,
     selectedRun,
-    isHydrating,
     deleteRun,
     renameRun,
-  } = useRunHistory(workflowId)
-
-  const {
-    activeKey,
-    setActiveKey,
-    groups,
+    resultGroups,
     flatKeys,
-    activeItem,
     currentFlatIndex,
+    selectedItemKey,
+    selectedItem,
+    selectItem,
     navigateUp,
     navigateDown,
-    reset,
-  } = useRunNavigation(selectedRun)
+    displayStep,
+    selectStep,
+    compareCandidates,
+    previewSettings,
+    compareDataUrl,
+    compareLabel,
+    updatePreviewSettings,
+    showSettings,
+    setShowSettings,
+  } = useRunOverview(workflowId)
 
   const items = selectedRun?.items ?? []
-
-  function handlePreviewSettingsChange(patch: Partial<PreviewSettings>) {
-    const { compareId, viewMode, sliderPos, ...persistable } = patch
-    if (
-      compareId !== undefined ||
-      viewMode !== undefined ||
-      sliderPos !== undefined
-    ) {
-      setEphemeral((s) => ({
-        ...s,
-        ...(compareId !== undefined && { compareId }),
-        ...(viewMode !== undefined && { viewMode }),
-        ...(sliderPos !== undefined && { sliderPos }),
-      }))
-    }
-    if (Object.keys(persistable).length > 0) {
-      setPreviewPreferences(persistable)
-    }
-  }
-
-  useEffect(() => {
-    setSelectedStepId(null)
-    setEphemeral(DEFAULT_EPHEMERAL)
-    setShowSettings(false)
-  }, [activeKey])
-
-  useEffect(() => {
-    reset()
-    setEphemeral(DEFAULT_EPHEMERAL)
-    setShowSettings(false)
-  }, [selectedRun, reset])
-
-  const displayStep =
-    activeItem?.chain.find((s) => s.nodeId === selectedStepId) ??
-    activeItem?.chain.at(-1) ??
-    null
-
-  const compareCandidates = useMemo<Array<CompareCandidate>>(() => {
-    if (!activeItem) return []
-    const currentStepId = selectedStepId ?? activeItem.chain.at(-1)?.nodeId
-    return activeItem.chain
-      .filter((s) => s.nodeId !== currentStepId && s.outputDataUrl != null)
-      .map((s) => ({
-        id: s.nodeId,
-        label: s.nodeData.label,
-        dataUrl: s.outputDataUrl!,
-      }))
-  }, [activeItem, selectedStepId])
-
-  const previewSettings: PreviewSettings = {
-    ...previewPreferences,
-    ...ephemeral,
-  }
-
-  const compareCandidate = compareCandidates.find(
-    (c) => c.id === ephemeral.compareId,
-  )
-  const compareDataUrl = compareCandidate?.dataUrl ?? null
-  const compareLabel = compareCandidate?.label ?? null
 
   const handleDownloadAll = useCallback(async () => {
     if (!selectedRun || items.length === 0) return
@@ -154,19 +77,13 @@ export function WorkflowHistoryDialog({
   }, [selectedRun, items, nodes])
 
   const handleDownloadCurrent = useCallback(() => {
-    if (!displayStep?.outputDataUrl || !activeItem) return
+    if (!displayStep?.outputDataUrl || !selectedItem) return
     downloadCurrent(
       displayStep.outputDataUrl,
-      activeItem.inputFilename,
+      selectedItem.inputFilename,
       displayStep.nodeData.label,
     )
-  }, [displayStep, activeItem])
-
-  const handleDeleteRun = useCallback(() => {
-    if (selectedRunId) {
-      deleteRun.mutate(selectedRunId)
-    }
-  }, [selectedRunId, deleteRun])
+  }, [displayStep, selectedItem])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -195,7 +112,7 @@ export function WorkflowHistoryDialog({
                   size="icon"
                   className="h-7 w-7"
                   disabled={deleteRun.isPending}
-                  onClick={handleDeleteRun}
+                  onClick={() => deleteRun.mutate(selectedRunId)}
                   title="Delete this run"
                 >
                   {deleteRun.isPending ? (
@@ -232,7 +149,7 @@ export function WorkflowHistoryDialog({
             onSelectRun={selectRun}
             onDeleteRun={(id) => deleteRun.mutate(id)}
             onRenameRun={(id, name) => renameRun(id, name)}
-            isLoading={isLoading}
+            isLoading={false}
           />
 
           {isHydrating ? (
@@ -247,10 +164,10 @@ export function WorkflowHistoryDialog({
             </div>
           ) : (
             <>
-              <RunResultsSidebar
-                groups={groups}
-                activeKey={activeKey}
-                onSelectKey={setActiveKey}
+              <ResultItemSidebar
+                resultGroups={resultGroups}
+                selectedItemKey={selectedItemKey}
+                onSelectItem={selectItem}
                 currentFlatIndex={currentFlatIndex}
                 flatKeysLength={flatKeys.length}
                 onNavigateUp={navigateUp}
@@ -261,7 +178,7 @@ export function WorkflowHistoryDialog({
               <div className="flex-1 flex flex-col overflow-hidden">
                 <PreviewToolbar
                   settings={previewSettings}
-                  onSettingsChange={handlePreviewSettingsChange}
+                  onSettingsChange={updatePreviewSettings}
                   compareCandidates={compareCandidates}
                   showSettings={showSettings}
                   onShowSettingsChange={setShowSettings}
@@ -271,7 +188,7 @@ export function WorkflowHistoryDialog({
                   {showSettings && (
                     <PreviewSettingsPanel
                       settings={previewSettings}
-                      onSettingsChange={handlePreviewSettingsChange}
+                      onSettingsChange={updatePreviewSettings}
                     />
                   )}
                   {displayStep?.outputDataUrl ? (
@@ -283,7 +200,7 @@ export function WorkflowHistoryDialog({
                         compareDataUrl={compareDataUrl}
                         compareLabel={compareLabel}
                         onSliderChange={(sliderPos) =>
-                          setEphemeral((s) => ({ ...s, sliderPos }))
+                          updatePreviewSettings({ sliderPos })
                         }
                       />
                       <Button
@@ -305,9 +222,9 @@ export function WorkflowHistoryDialog({
               </div>
 
               <RunChainPanel
-                activeItem={activeItem}
-                selectedStepId={selectedStepId}
-                onSelectStep={setSelectedStepId}
+                selectedItem={selectedItem}
+                selectedStepId={displayStep?.nodeId ?? null}
+                onSelectStep={selectStep}
               />
             </>
           )}

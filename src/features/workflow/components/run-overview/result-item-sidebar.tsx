@@ -1,13 +1,13 @@
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/shared/lib/utils'
 import type { ResultGroup } from '@/features/workflow/lib/run-utils'
 import type { StudioNode } from '@/features/workflow/types'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/shared/lib/utils'
 
-interface RunResultsSidebarProps {
-  groups: Array<ResultGroup>
-  activeKey: string | null
-  onSelectKey: (key: string) => void
+interface ResultItemSidebarProps {
+  resultGroups: Array<ResultGroup>
+  selectedItemKey: string | null
+  onSelectItem: (key: string) => void
   currentFlatIndex: number
   flatKeysLength: number
   onNavigateUp: () => void
@@ -15,16 +15,16 @@ interface RunResultsSidebarProps {
   nodes: Array<StudioNode>
 }
 
-export function RunResultsSidebar({
-  groups,
-  activeKey,
-  onSelectKey,
+export function ResultItemSidebar({
+  resultGroups,
+  selectedItemKey,
+  onSelectItem,
   currentFlatIndex,
   flatKeysLength,
   onNavigateUp,
   onNavigateDown,
   nodes,
-}: RunResultsSidebarProps) {
+}: ResultItemSidebarProps) {
   const nodeLabel = (nodeId: string): string => {
     const n = nodes.find((x) => x.id === nodeId)
     return n?.data.label ?? nodeId
@@ -57,12 +57,10 @@ export function RunResultsSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
-        {groups.map((group) => {
+        {resultGroups.map((group) => {
           const groupKey = `${group.inputNodeId}|${group.inputFilename}`
           const groupLabel =
-            group.inputFilename ||
-            nodeLabel(group.inputNodeId) ||
-            'Input'
+            group.inputFilename || nodeLabel(group.inputNodeId) || 'Input'
           return (
             <div key={groupKey} className="mb-3">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1 truncate">
@@ -71,16 +69,12 @@ export function RunResultsSidebar({
               <div className="space-y-0.5">
                 {group.items.map((item, idx) => {
                   const itemKey = `${groupKey}|${idx}`
-                  const isActive =
-                    activeKey === itemKey ||
-                    (activeKey === null &&
-                      group === groups[0] &&
-                      idx === 0)
+                  const isActive = selectedItemKey === itemKey
                   return (
                     <button
                       key={itemKey}
                       type="button"
-                      onClick={() => onSelectKey(itemKey)}
+                      onClick={() => onSelectItem(itemKey)}
                       className={cn(
                         'flex items-center gap-1.5 w-full px-1 py-1 text-left transition-colors',
                         isActive ? 'bg-accent' : 'hover:bg-accent/50',

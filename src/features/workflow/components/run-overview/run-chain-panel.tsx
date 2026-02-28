@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { IconChevronsDown, IconChevronsUp } from '@tabler/icons-react'
+import type { RunResultItem } from '@/features/workflow/lib/run-store'
 import {
   Accordion,
   AccordionContent,
@@ -8,29 +9,28 @@ import {
 } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/shared/lib/utils'
-import type { RunResultItem } from '@/features/workflow/lib/run-store'
 
 interface RunChainPanelProps {
-  activeItem: RunResultItem | null
+  selectedItem: RunResultItem | null
   selectedStepId: string | null
   onSelectStep: (stepId: string) => void
 }
 
 export function RunChainPanel({
-  activeItem,
+  selectedItem,
   selectedStepId,
   onSelectStep,
 }: RunChainPanelProps) {
   const [accordionValue, setAccordionValue] = useState<Array<string>>([])
 
   const allStepIds = useMemo(
-    () => activeItem?.chain.map((s) => s.nodeId) ?? [],
-    [activeItem],
+    () => selectedItem?.chain.map((s) => s.nodeId) ?? [],
+    [selectedItem],
   )
   const openAll = useCallback(() => setAccordionValue(allStepIds), [allStepIds])
   const closeAll = useCallback(() => setAccordionValue([]), [])
 
-  if (!activeItem) {
+  if (!selectedItem) {
     return (
       <div className="w-72 border-l shrink-0 flex items-center justify-center h-full text-xs text-muted-foreground">
         Select a result
@@ -66,25 +66,19 @@ export function RunChainPanel({
           value={accordionValue}
           onValueChange={setAccordionValue}
         >
-          {activeItem.chain.map((step) => {
-            const isSelected =
-              step.nodeId ===
-              (selectedStepId ?? activeItem.chain.at(-1)?.nodeId)
+          {selectedItem.chain.map((step) => {
+            const isSelected = step.nodeId === selectedStepId
             return (
               <AccordionItem
                 key={step.nodeId}
                 value={step.nodeId}
                 className={cn(
                   'border-l-2 transition-colors',
-                  isSelected
-                    ? 'border-l-primary'
-                    : 'border-l-transparent',
+                  isSelected ? 'border-l-primary' : 'border-l-transparent',
                 )}
               >
                 <AccordionTrigger className="px-4 text-xs gap-2">
-                  <span className="truncate">
-                    {step.nodeData.label}
-                  </span>
+                  <span className="truncate">{step.nodeData.label}</span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-3 space-y-2">
                   {step.outputDataUrl && (
@@ -99,9 +93,7 @@ export function RunChainPanel({
                           onClick={() => onSelectStep(step.nodeId)}
                           className="absolute cursor-default top-0 left-0 w-full h-full bg-black/50 backdrop-blur-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition group-hover:transition-opacity"
                         >
-                          <p className="text-sm text-white">
-                            View image
-                          </p>
+                          <p className="text-sm text-white">View image</p>
                         </div>
                       )}
                     </div>
