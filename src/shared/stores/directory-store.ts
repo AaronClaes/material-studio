@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { STORE_DIRECTORY_HANDLES as STORE_NAME, openDB } from './indexed-db'
+import { IMAGE_EXTENSIONS } from '@/shared/lib/image-extensions'
+import { fileToDataUrl } from '@/shared/lib/file-to-data-url'
 
 async function saveHandle(
   nodeId: string,
@@ -53,16 +55,6 @@ async function verifyPermission(
   return false
 }
 
-const IMAGE_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-  'bmp',
-  'tiff',
-  'avif',
-])
 
 export async function readDirectoryPreview(
   handle: FileSystemDirectoryHandle,
@@ -86,12 +78,7 @@ export async function readDirectoryPreview(
   if (entries.length > 0) {
     const file = await entries[0].getFile()
     srcFilename = file.name.replace(/\.[^.]+$/, '')
-    src = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target!.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+    src = await fileToDataUrl(file)
   }
 
   return {

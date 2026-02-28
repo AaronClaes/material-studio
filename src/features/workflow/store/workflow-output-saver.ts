@@ -1,6 +1,18 @@
-import { useDirectoryStore } from '@/shared/stores/directory-store'
-import type { ExecutionResults, StudioEdge, StudioNode } from '@/features/workflow/types'
+import type {
+  ExecutionResults,
+  StudioEdge,
+  StudioNode,
+} from '@/features/workflow/types'
 import type { RunResultItem } from '../lib/run-store'
+import { useDirectoryStore } from '@/shared/stores/directory-store'
+
+function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const edge of edges) {
+    if (!map.has(edge.target)) map.set(edge.target, edge.source)
+  }
+  return map
+}
 
 /**
  * Saves completed output nodes directly to their configured directory.
@@ -15,11 +27,7 @@ export async function saveOutputNodes(
   stemOverride?: string,
 ): Promise<void> {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const incomingEdge = new Map<string, string>()
-  for (const edge of edges) {
-    if (!incomingEdge.has(edge.target))
-      incomingEdge.set(edge.target, edge.source)
-  }
+  const incomingEdge = buildIncomingEdgeMap(edges)
 
   function findUpstreamInputStem(outputId: string): string {
     let currentId: string | undefined = outputId
@@ -61,11 +69,7 @@ export function buildRunItems(
   results: ExecutionResults,
 ): Array<RunResultItem> {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  const incomingEdge = new Map<string, string>()
-  for (const edge of edges) {
-    if (!incomingEdge.has(edge.target))
-      incomingEdge.set(edge.target, edge.source)
-  }
+  const incomingEdge = buildIncomingEdgeMap(edges)
   const hasOutgoing = new Set(edges.map((e) => e.source))
 
   const leafNodes = nodes.filter(

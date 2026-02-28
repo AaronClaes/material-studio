@@ -1,21 +1,17 @@
 import { getDownstreamIds, runFromNode } from '../lib/execution'
-import { useDirectoryStore } from '@/shared/stores/directory-store'
 import { updateWorkflow } from './workflow-crud'
-import { makeCallbacks, makeRunOptions, getWorkflow, revokeOldUrl } from './workflow-callbacks'
-import { saveOutputNodes, buildRunItems } from './workflow-output-saver'
+import {
+  getWorkflow,
+  makeCallbacks,
+  makeRunOptions,
+  revokeOldUrl,
+} from './workflow-callbacks'
+import { buildRunItems, saveOutputNodes } from './workflow-output-saver'
 import type { StoreGet, StoreSet } from './workflow-types'
 import type { RunResultItem } from '../lib/run-store'
-
-const IMAGE_EXTENSIONS = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-  'bmp',
-  'tiff',
-  'avif',
-])
+import { IMAGE_EXTENSIONS } from '@/shared/lib/image-extensions'
+import { fileToDataUrl } from '@/shared/lib/file-to-data-url'
+import { useDirectoryStore } from '@/shared/stores/directory-store'
 
 export async function runBatchCollect(
   set: StoreSet,
@@ -58,19 +54,14 @@ export async function runBatchCollect(
   for (let i = 0; i < fileHandles.length; i++) {
     const file = await fileHandles[i].getFile()
     const stem = file.name.replace(/\.[^.]+$/, '')
-    const fileDataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target!.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+    const fileDataUrl = await fileToDataUrl(file)
 
     get().patchNodeData(workflowId, nodeId, {
       src: fileDataUrl,
       srcFilename: stem,
     })
 
-    const { nodes, edges } = get().workflows.find((w) => w.id === workflowId)!
+    const { nodes, edges } = getWorkflow(get, workflowId)!
     const downstreamIds = getDownstreamIds(nodeId, edges)
     set((s) => ({
       workflows: updateWorkflow(s.workflows, workflowId, (w) => {
@@ -97,7 +88,7 @@ export async function runBatchCollect(
       console.error(`Batch: skipping ${file.name}:`, err)
     }
 
-    const afterWf = get().workflows.find((w) => w.id === workflowId)!
+    const afterWf = getWorkflow(get, workflowId)!
     await saveOutputNodes(
       afterWf.nodes,
       afterWf.edges,

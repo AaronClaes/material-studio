@@ -3,11 +3,11 @@ import { readDirectoryPreview, useDirectoryStore } from '@/shared/stores/directo
 import { useWorkflowStore } from '@/features/workflow/store/workflow-store'
 
 export function useDirectoryRestore() {
-  const workflows = useWorkflowStore((s) => s.workflows)
   const restoreHandles = useDirectoryStore((s) => s.restoreHandles)
   const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
 
   useEffect(() => {
+    const workflows = useWorkflowStore.getState().workflows
     const allNodes = workflows.flatMap((w) => w.nodes)
     const dirNodeIds = allNodes
       .filter(

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useActiveWorkflowActions } from '@/features/workflow/store/workflow-store'
 
@@ -17,26 +17,34 @@ export function useNodeUpdater<T extends object>(
   const { setNodes, updateNodeData } = useReactFlow()
   const { runNode } = useActiveWorkflowActions()
   const liveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
-  function update(patch: Partial<T>) {
-    setNodes((nodes) =>
-      nodes.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n,
-      ),
-    )
-    if (options.live && options.hasValidInput && !options.isRunning) {
-      if (liveTimer.current) clearTimeout(liveTimer.current)
-      liveTimer.current = setTimeout(() => runNode(nodeId), 200)
-    }
-  }
+  const update = useCallback(
+    (patch: Partial<T>) => {
+      setNodes((nodes) =>
+        nodes.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n,
+        ),
+      )
+      const { live, hasValidInput, isRunning } = optionsRef.current
+      if (live && hasValidInput && !isRunning) {
+        if (liveTimer.current) clearTimeout(liveTimer.current)
+        liveTimer.current = setTimeout(() => runNode(nodeId), 200)
+      }
+    },
+    [nodeId, setNodes, runNode],
+  )
 
-  function toggleDisabled(current: boolean) {
-    updateNodeData(nodeId, { disabled: !current })
-  }
+  const toggleDisabled = useCallback(
+    (current: boolean) => updateNodeData(nodeId, { disabled: !current }),
+    [nodeId, updateNodeData],
+  )
 
-  function toggleLive(current: boolean) {
-    updateNodeData(nodeId, { live: !current })
-  }
+  const toggleLive = useCallback(
+    (current: boolean) => updateNodeData(nodeId, { live: !current }),
+    [nodeId, updateNodeData],
+  )
 
   return { update, toggleDisabled, toggleLive }
 }

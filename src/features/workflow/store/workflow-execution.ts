@@ -13,7 +13,7 @@ import { useRunHistoryStore } from './run-history-store'
 import type { RunResultItem, WorkflowRun } from '../lib/run-store'
 import type { StoreGet, StoreSet } from './workflow-types'
 import type { ExecutionResults } from '@/features/workflow/types'
-import type { RunMeta, RunItem } from '@/shared/lib/run-history-types'
+import type { RunItem, RunMeta } from '@/shared/lib/run-history-types'
 import { notify } from '@/shared/stores/settings-store'
 import {
   deleteWorkflowResults,
@@ -188,14 +188,11 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         })),
       }))
 
-      // Persist results to OPFS for restore on refresh
-      const persistWf = getWorkflow(get, workflowId)
-      if (persistWf) {
-        persistResults(workflowId, persistWf.results)
-      }
-
       const finalWf = getWorkflow(get, workflowId)
       if (finalWf) {
+        // Persist results to OPFS for restore on refresh
+        persistResults(workflowId, finalWf.results)
+
         const regularItems = buildRunItems(
           finalWf.nodes,
           finalWf.edges,
@@ -219,8 +216,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
             items,
           }
           saveToRunHistory(run).catch(() => {})
-          const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
-          notify(`${wfName} complete`, {
+          notify(`${finalWf.name} complete`, {
             body: `${items.length} output(s) processed`,
           })
         }

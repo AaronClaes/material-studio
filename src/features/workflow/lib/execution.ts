@@ -202,7 +202,7 @@ async function runGraphSlice(options: {
   edges: Array<StudioEdge>
   callbacks: RunCallbacks
   runOptions?: RunOptions
-}): Promise<Map<string, GPUImageBuffer>> {
+}): Promise<void> {
   const idsToRun = options.endNodeId
     ? getIdsBetweenNodes(options.startNodeId, options.endNodeId, options.edges)
     : getDownstreamIds(options.startNodeId, options.edges)
@@ -236,8 +236,62 @@ async function runGraphSlice(options: {
   )
 
   destroyAllOutputs(outputs)
+}
 
-  return outputs
+/**
+ * Runs a graph slice and returns the end node's GPU buffer, destroying all
+ * other intermediate buffers. Used by nested workflow nodes so the caller can
+ * continue the outer GPU pipeline with the result.
+ */
+async function runGraphSliceRetaining(options: {
+  device: GPUDevice
+  startNodeId: string
+  endNodeId: string
+  initialInput: GPUImageBuffer | undefined
+  nodes: Array<StudioNode>
+  edges: Array<StudioEdge>
+  runOptions?: RunOptions
+}): Promise<GPUImageBuffer> {
+  const idsToRun = getIdsBetweenNodes(
+    options.startNodeId,
+    options.endNodeId,
+    options.edges,
+  )
+
+  const nodesToRun = options.nodes.filter((node) => idsToRun.has(node.id))
+  const edgesToRun = options.edges.filter(
+    (edge) => idsToRun.has(edge.source) && idsToRun.has(edge.target),
+  )
+
+  const order = topoSort(nodesToRun, edgesToRun)
+  const nodeMap = new Map(options.nodes.map((node) => [node.id, node]))
+  const incomingEdge = buildIncomingEdgeMap(edgesToRun)
+  const outputs = new Map<string, GPUImageBuffer>()
+
+  seedInitialInput(
+    options.startNodeId,
+    options.initialInput,
+    options.edges,
+    incomingEdge,
+    outputs,
+  )
+
+  await executeOrder(
+    options.device,
+    order,
+    nodeMap,
+    incomingEdge,
+    outputs,
+    NOOP_CALLBACKS,
+    options.runOptions,
+  )
+
+  const output = outputs.get(options.endNodeId)
+  if (!output) throw new Error('Selected end node did not produce output')
+
+  destroyOutputsExcept(outputs, options.endNodeId)
+
+  return output
 }
 
 async function processNode(
@@ -360,27 +414,19 @@ async function processNode(
     const nestedWorkflow = runOptions.workflowResolver(data.workflowId)
     if (!nestedWorkflow) throw new Error('Selected workflow no longer exists')
 
-    const nestedOutputs = await runGraphSlice({
+    const output = await runGraphSliceRetaining({
       device,
       startNodeId: data.startNodeId,
       endNodeId: data.endNodeId,
       initialInput: input,
       nodes: nestedWorkflow.nodes,
       edges: nestedWorkflow.edges,
-      callbacks: NOOP_CALLBACKS,
       runOptions: {
         ...runOptions,
         currentWorkflowId: data.workflowId,
         callStack: [...stack, data.workflowId],
       },
     })
-
-    const output = nestedOutputs.get(data.endNodeId)
-    if (!output) {
-      throw new Error('Selected end node did not produce output')
-    }
-    // Clean up nested buffers except the one we're passing out
-    destroyOutputsExcept(nestedOutputs, data.endNodeId)
 
     const dataUrl = await gpuBufferToObjectUrl(device, output)
     return { kind: 'image', gpuBuffer: output, dataUrl }
@@ -521,28 +567,3 @@ export async function runFromNode(
   })
 }
 
-/**
- * Runs every non-batch input node's chain in sequence.
- * Each input is processed independently end-to-end so that multiple inputs
- * feeding the same downstream node each get their turn.
- */
-export async function runWorkflow(
-  nodes: Array<StudioNode>,
-  edges: Array<StudioEdge>,
-  callbacks: RunCallbacks,
-  runOptions?: RunOptions,
-): Promise<void> {
-  const inputNodes = nodes.filter(
-    (n) => n.data.kind === 'inputNode' && n.data.src && !n.data.batch,
-  )
-  for (const inputNode of inputNodes) {
-    await runFromNode(
-      inputNode.id,
-      undefined,
-      nodes,
-      edges,
-      callbacks,
-      runOptions,
-    )
-  }
-}

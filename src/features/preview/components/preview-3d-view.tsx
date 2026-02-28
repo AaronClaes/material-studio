@@ -96,15 +96,13 @@ function TexturedMesh({
   textureRepeat: number
 }) {
   const meshRef = useRef<Mesh | null>(null)
-  const texture = useTexture(dataUrl)
-
-  useEffect(() => {
+  const texture = useTexture(dataUrl, () => {
     texture.colorSpace = SRGBColorSpace
     texture.wrapS = RepeatWrapping
     texture.wrapT = RepeatWrapping
     texture.repeat.set(textureRepeat, textureRepeat)
     texture.needsUpdate = true
-  }, [texture, textureRepeat])
+  })
 
   return (
     <mesh
