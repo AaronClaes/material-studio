@@ -147,6 +147,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const existing = get().blobUrls[id]
     if (existing) return existing
     try {
+      if (!get().loaded) await get().loadModels()
       const model = get().models.find((m) => m.id === id)
       if (!model) return null
       const url = await collection.getFileUrl(model.fileName)

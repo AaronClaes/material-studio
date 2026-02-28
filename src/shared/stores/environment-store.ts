@@ -83,6 +83,7 @@ export const useEnvironmentStore = create<EnvironmentStore>((set, get) => ({
     const existing = get().blobUrls[id]
     if (existing) return existing
     try {
+      if (!get().loaded) await get().loadEnvironments()
       const env = get().environments.find((e) => e.id === id)
       if (!env) return null
       const rawUrl = await collection.getFileUrl(env.fileName)
