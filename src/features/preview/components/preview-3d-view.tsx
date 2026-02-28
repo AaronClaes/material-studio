@@ -34,7 +34,7 @@ export function Preview3DCanvas({
       <Suspense fallback={null}>
         <DeferredEnvironment file={environmentFile} />
         {children}
-        <OrbitControls enablePan={false} minDistance={1.8} maxDistance={5} />
+        <OrbitControls />
       </Suspense>
     </Canvas>
   )
