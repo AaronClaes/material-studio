@@ -3,13 +3,21 @@ import { IconFolderOpen, IconPhoto } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
 import type { StudioNode } from '@/features/workflow/types'
+import {
+  deleteWorkflowInput,
+  loadWorkflowInput,
+  saveWorkflowInput,
+} from '@/shared/lib/image-opfs'
 import { Label } from '@/components/ui/label'
 import {
   useActiveWorkflowIsRunning,
   useActiveWorkflowResults,
   useWorkflowStore,
 } from '@/features/workflow/store/workflow-store'
-import { readDirectoryPreview, useDirectoryStore } from '@/shared/stores/directory-store'
+import {
+  readDirectoryPreview,
+  useDirectoryStore,
+} from '@/shared/stores/directory-store'
 import { useDirectoryPicker } from '@/shared/hooks/use-directory-picker'
 import { DirectoryPickerButton } from '@/shared/components/directory-picker-button'
 import { cn } from '@/shared/lib/utils'
@@ -37,6 +45,14 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
     })
   }, [handle])
 
+  // Restore single file input from OPFS on mount (must be before early returns)
+  useEffect(() => {
+    if (isBatch || data.src) return
+    loadWorkflowInput(activeWorkflowId, id).then((url) => {
+      if (url) patchNodeData(activeWorkflowId, id, { src: url })
+    })
+  }, [])
+
   function switchMode(toBatch: boolean) {
     if (toBatch === isBatch) return
     if (toBatch) {
@@ -45,6 +61,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
         src: '',
         srcFilename: undefined,
       })
+      deleteWorkflowInput(activeWorkflowId, id)
     } else {
       clearHandle(id)
       patchNodeData(activeWorkflowId, id, {
@@ -148,9 +165,11 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
     if (!file) return
     const srcFilename = file.name.replace(/\.[^.]+$/, '')
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const src = ev.target?.result as string
       patchNodeData(activeWorkflowId, id, { src, srcFilename })
+      const blob = await fetch(src).then((r) => r.blob())
+      saveWorkflowInput(activeWorkflowId, id, blob)
     }
     reader.readAsDataURL(file)
   }

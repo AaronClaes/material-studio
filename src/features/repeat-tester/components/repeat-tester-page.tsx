@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { IconUpload } from '@tabler/icons-react'
 import type { PreviewSettings } from '@/features/preview/types'
+import {
+  loadRepeatTesterImage,
+  saveRepeatTesterImage,
+} from '@/shared/lib/image-opfs'
 import {
   PreviewSettingsPanel,
   PreviewToolbar,
@@ -16,14 +20,29 @@ export function RepeatTesterPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
-  const settings: PreviewSettings = { ...previewPreferences, compareId: null, viewMode: 'split', sliderPos }
+  const settings: PreviewSettings = {
+    ...previewPreferences,
+    compareId: null,
+    viewMode: 'split',
+    sliderPos,
+  }
+
+  useEffect(() => {
+    loadRepeatTesterImage().then((url) => {
+      if (url) setDataUrl(url)
+    })
+  }, [])
 
   function loadFile(file: File) {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const result = e.target?.result
-      if (typeof result === 'string') setDataUrl(result)
+      if (typeof result === 'string') {
+        setDataUrl(result)
+        const blob = await fetch(result).then((r) => r.blob())
+        saveRepeatTesterImage(blob)
+      }
     }
     reader.readAsDataURL(file)
   }
@@ -52,7 +71,12 @@ export function RepeatTesterPage() {
   }
 
   function handleSettingsChange(patch: Partial<PreviewSettings>) {
-    const { compareId: _c, viewMode: _vm, sliderPos: sp, ...persistable } = patch
+    const {
+      compareId: _c,
+      viewMode: _vm,
+      sliderPos: sp,
+      ...persistable
+    } = patch
     if (sp !== undefined) setSliderPos(sp)
     if (Object.keys(persistable).length > 0) setPreviewPreferences(persistable)
   }

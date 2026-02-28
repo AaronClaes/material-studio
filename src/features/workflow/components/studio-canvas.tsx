@@ -10,9 +10,6 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { useCallback, useEffect, useState } from 'react'
-import { StudioToolbar } from './studio-toolbar'
-import { FloatingAddNode } from './floating-add-node'
-import { WorkflowPanel } from './workflow-panel'
 import {
   AomapNode,
   ColorNode,
@@ -25,6 +22,11 @@ import {
   ResolutionNode,
   WorkflowNode,
 } from '../nodes'
+import { useDirectoryRestore } from '../hooks/use-directory-restore'
+import { useRestoreWorkflowResults } from '../hooks/use-restore-workflow-results'
+import { StudioToolbar } from './studio-toolbar'
+import { FloatingAddNode } from './floating-add-node'
+import { WorkflowPanel } from './workflow-panel'
 import { RunOverviewDialog } from './run-overview/run-overview-dialog'
 import type {
   Connection,
@@ -32,10 +34,12 @@ import type {
   NodeChange,
   NodeTypes,
 } from '@xyflow/react'
-import { exportWorkflow, useWorkflowStore } from '@/features/workflow/store/workflow-store'
+import {
+  exportWorkflow,
+  useWorkflowStore,
+} from '@/features/workflow/store/workflow-store'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
 import { useRunStore } from '@/features/workflow/lib/run-store'
-import { useDirectoryRestore } from '../hooks/use-directory-restore'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -74,6 +78,7 @@ export function StudioCanvas() {
   const [overviewOpen, setOverviewOpen] = useState(false)
 
   useDirectoryRestore()
+  useRestoreWorkflowResults(activeWorkflowId)
 
   useEffect(() => {
     if (hasUnseenRun) {

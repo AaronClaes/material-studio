@@ -38,6 +38,7 @@ export interface WorkflowStore {
   ) => void
 
   // Execution
+  setResults: (workflowId: string, results: ExecutionResults) => void
   run: (workflowId: string) => Promise<void>
   runNode: (workflowId: string, nodeId: string) => Promise<void>
   runNodesFrom: (workflowId: string, nodeId: string) => Promise<void>

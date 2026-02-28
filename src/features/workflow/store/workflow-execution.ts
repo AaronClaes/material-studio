@@ -1,18 +1,51 @@
 import { getDownstreamIds, runFromNode, runSingleNode } from '../lib/execution'
-import { dataUrlToGPUBuffer, processInputNode } from '@/shared/gpu/processors'
-import { getGPUDevice } from '@/shared/gpu'
-import { useDirectoryStore } from '@/shared/stores/directory-store'
-import { updateWorkflow } from './workflow-crud'
 import { useRunStore } from '../lib/run-store'
-import { notify } from '@/shared/stores/settings-store'
-import { makeCallbacks, makeRunOptions, getWorkflow, revokeOldUrl } from './workflow-callbacks'
-import { saveOutputNodes, buildRunItems } from './workflow-output-saver'
+import { updateWorkflow } from './workflow-crud'
+import {
+  getWorkflow,
+  makeCallbacks,
+  makeRunOptions,
+  revokeOldUrl,
+} from './workflow-callbacks'
+import { buildRunItems, saveOutputNodes } from './workflow-output-saver'
 import { runBatchCollect } from './workflow-batch'
 import type { StoreGet, StoreSet } from './workflow-types'
+import type { ExecutionResults } from '@/features/workflow/types'
 import type { RunResultItem } from '../lib/run-store'
+import { notify } from '@/shared/stores/settings-store'
+import {
+  deleteWorkflowResults,
+  saveWorkflowResult,
+} from '@/shared/lib/image-opfs'
+import { useDirectoryStore } from '@/shared/stores/directory-store'
+import { getGPUDevice } from '@/shared/gpu'
+import { dataUrlToGPUBuffer, processInputNode } from '@/shared/gpu/processors'
+
+async function persistResults(
+  workflowId: string,
+  results: ExecutionResults,
+): Promise<void> {
+  await Promise.all(
+    Object.entries(results).map(([nodeId, result]) => {
+      if (result?.outputDataUrl) {
+        return saveWorkflowResult(
+          workflowId,
+          nodeId,
+          result.outputDataUrl,
+        ).catch(() => {})
+      }
+    }),
+  )
+}
 
 export function buildExecutionActions(set: StoreSet, get: StoreGet) {
   return {
+    setResults: (workflowId: string, results: ExecutionResults) => {
+      set((s) => ({
+        workflows: updateWorkflow(s.workflows, workflowId, () => ({ results })),
+      }))
+    },
+
     run: async (workflowId: string) => {
       const wf = getWorkflow(get, workflowId)
       if (!wf || wf.isRunning) return
@@ -103,6 +136,12 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           isRunning: false,
         })),
       }))
+
+      // Persist results to OPFS for restore on refresh
+      const persistWf = getWorkflow(get, workflowId)
+      if (persistWf) {
+        persistResults(workflowId, persistWf.results)
+      }
 
       const finalWf = getWorkflow(get, workflowId)
       if (finalWf) {
@@ -318,6 +357,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           })),
         }
       })
+      deleteWorkflowResults(workflowId)
     },
   }
 }

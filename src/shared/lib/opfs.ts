@@ -57,4 +57,13 @@ export class FileCollection {
     const file = await this.readFile(fileName)
     return URL.createObjectURL(file)
   }
+
+  async listFiles(): Promise<Array<string>> {
+    const dir = await this.getDir()
+    const names: Array<string> = []
+    for await (const [name] of (dir as any).entries()) {
+      if (name !== '_meta.json') names.push(name)
+    }
+    return names
+  }
 }

@@ -1,9 +1,4 @@
-import { useState } from 'react'
-import type {
-  MapKey,
-  MaterialType,
-} from '../lib/material-definitions'
-import type { PreviewSettings } from '@/features/preview/components'
+import { useEffect, useState } from 'react'
 import {
   MATERIAL_MAPS,
   MATERIAL_TYPES,
@@ -11,6 +6,13 @@ import {
 } from '../lib/material-definitions'
 import { MapSlot } from './map-slot'
 import { Viewer3D } from './viewer-3d'
+import type { PreviewSettings } from '@/features/preview/components'
+import type { MapKey, MaterialType } from '../lib/material-definitions'
+import {
+  deleteMaterialViewerMap,
+  loadMaterialViewerMaps,
+  saveMaterialViewerMap,
+} from '@/shared/lib/image-opfs'
 import {
   Preview3DSettingsContent,
   useCustomModelUrl,
@@ -43,6 +45,12 @@ export function MaterialViewerPage() {
     previewPreferences.customModelId,
   )
 
+  useEffect(() => {
+    loadMaterialViewerMaps().then((loaded) => {
+      if (Object.keys(loaded).length > 0) setMaps(loaded)
+    })
+  }, [])
+
   const mapDefs = MATERIAL_MAPS[materialType]
 
   const customModel =
@@ -61,10 +69,12 @@ export function MaterialViewerPage() {
   function loadFileIntoMap(file: File, key: MapKey) {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const result = e.target?.result
       if (typeof result === 'string') {
         setMaps((prev) => ({ ...prev, [key]: result }))
+        const blob = await fetch(result).then((r) => r.blob())
+        saveMaterialViewerMap(key, blob)
       }
     }
     reader.readAsDataURL(file)
@@ -142,16 +152,19 @@ export function MaterialViewerPage() {
                 key={def.key}
                 def={def}
                 dataUrl={maps[def.key]}
-                onUpload={(dataUrl) =>
+                onUpload={async (dataUrl) => {
                   setMaps((prev) => ({ ...prev, [def.key]: dataUrl }))
-                }
-                onRemove={() =>
+                  const blob = await fetch(dataUrl).then((r) => r.blob())
+                  saveMaterialViewerMap(def.key, blob)
+                }}
+                onRemove={() => {
                   setMaps((prev) => {
                     const next = { ...prev }
                     delete next[def.key]
                     return next
                   })
-                }
+                  deleteMaterialViewerMap(def.key)
+                }}
                 isExternalDragTarget={dragTargetKey === def.key}
                 onDragTargetEnter={(key) => setDragTargetKey(key)}
                 onDragTargetLeave={() => setDragTargetKey(null)}
