@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   MATERIAL_MAPS,
   MATERIAL_TYPES,
@@ -30,10 +31,25 @@ import { useSettingsStore } from '@/shared/stores/settings-store'
 import { useModelStore } from '@/shared/stores/model-store'
 
 export function MaterialViewerPage() {
+  const queryClient = useQueryClient()
   const [materialType, setMaterialType] = useState<MaterialType>(
     'MeshStandardMaterial',
   )
-  const [maps, setMaps] = useState<Partial<Record<MapKey, string>>>({})
+  const { data: maps = {} } = useQuery({
+    queryKey: ['material-viewer-maps'],
+    queryFn: loadMaterialViewerMaps,
+    structuralSharing: (oldData, newData) => {
+      const old = oldData as typeof maps | undefined
+      const next = newData as typeof maps
+      if (old) {
+        Object.entries(old).forEach(([key, url]) => {
+          if (url && next[key as MapKey] !== url) URL.revokeObjectURL(url)
+        })
+      }
+      return next
+    },
+  })
+
   const [isDragging, setIsDragging] = useState(false)
   const [dragTargetKey, setDragTargetKey] = useState<MapKey | null>(null)
   const { previewPreferences, setPreviewPreferences } = useSettingsStore()
@@ -44,12 +60,6 @@ export function MaterialViewerPage() {
     previewPreferences.shape,
     previewPreferences.customModelId,
   )
-
-  useEffect(() => {
-    loadMaterialViewerMaps().then((loaded) => {
-      if (Object.keys(loaded).length > 0) setMaps(loaded)
-    })
-  }, [])
 
   const mapDefs = MATERIAL_MAPS[materialType]
 
@@ -72,9 +82,9 @@ export function MaterialViewerPage() {
     reader.onload = async (e) => {
       const result = e.target?.result
       if (typeof result === 'string') {
-        setMaps((prev) => ({ ...prev, [key]: result }))
         const blob = await fetch(result).then((r) => r.blob())
-        saveMaterialViewerMap(key, blob)
+        await saveMaterialViewerMap(key, blob)
+        queryClient.invalidateQueries({ queryKey: ['material-viewer-maps'] })
       }
     }
     reader.readAsDataURL(file)
@@ -153,17 +163,13 @@ export function MaterialViewerPage() {
                 def={def}
                 dataUrl={maps[def.key]}
                 onUpload={async (dataUrl) => {
-                  setMaps((prev) => ({ ...prev, [def.key]: dataUrl }))
                   const blob = await fetch(dataUrl).then((r) => r.blob())
-                  saveMaterialViewerMap(def.key, blob)
+                  await saveMaterialViewerMap(def.key, blob)
+                  queryClient.invalidateQueries({ queryKey: ['material-viewer-maps'] })
                 }}
-                onRemove={() => {
-                  setMaps((prev) => {
-                    const next = { ...prev }
-                    delete next[def.key]
-                    return next
-                  })
-                  deleteMaterialViewerMap(def.key)
+                onRemove={async () => {
+                  await deleteMaterialViewerMap(def.key)
+                  queryClient.invalidateQueries({ queryKey: ['material-viewer-maps'] })
                 }}
                 isExternalDragTarget={dragTargetKey === def.key}
                 onDragTargetEnter={(key) => setDragTargetKey(key)}

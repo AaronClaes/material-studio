@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useWorkflowStore } from '../store/workflow-store'
 import { loadAllWorkflowResults } from '@/shared/lib/image-opfs'
 
@@ -10,17 +11,30 @@ export function useRestoreWorkflowResults(workflowId: string) {
         .length > 0,
   )
 
+  const { data } = useQuery({
+    queryKey: ['workflow-results', workflowId],
+    queryFn: () => loadAllWorkflowResults(workflowId),
+    enabled: !!workflowId && !hasResults,
+    structuralSharing: (oldData, newData) => {
+      const old = oldData as Record<string, string> | undefined
+      const next = newData as Record<string, string>
+      if (old) {
+        Object.values(old).forEach((url) => {
+          if (!Object.values(next).includes(url)) URL.revokeObjectURL(url)
+        })
+      }
+      return next
+    },
+  })
+
   useEffect(() => {
-    if (hasResults) return
-    loadAllWorkflowResults(workflowId).then((results) => {
-      if (Object.keys(results).length === 0) return
-      const structured = Object.fromEntries(
-        Object.entries(results).map(([nodeId, url]) => [
-          nodeId,
-          { status: 'done' as const, outputDataUrl: url, error: null },
-        ]),
-      )
-      setResults(workflowId, structured)
-    })
-  }, [workflowId])
+    if (!data || Object.keys(data).length === 0) return
+    const structured = Object.fromEntries(
+      Object.entries(data).map(([nodeId, url]) => [
+        nodeId,
+        { status: 'done' as const, outputDataUrl: url, error: null },
+      ]),
+    )
+    setResults(workflowId, structured)
+  }, [data])
 }

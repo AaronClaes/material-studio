@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconFolderOpen, IconPhoto } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import type { NodeProps } from '@xyflow/react'
@@ -25,6 +26,7 @@ import { cn } from '@/shared/lib/utils'
 export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'inputNode') return null
 
+  const queryClient = useQueryClient()
   const activeWorkflowId = useWorkflowStore((s) => s.activeWorkflowId)
   const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
   const results = useActiveWorkflowResults()
@@ -46,12 +48,18 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
   }, [handle])
 
   // Restore single file input from OPFS on mount (must be before early returns)
+  const { data: savedUrl } = useQuery({
+    queryKey: ['workflow-input', activeWorkflowId, id],
+    queryFn: () => loadWorkflowInput(activeWorkflowId, id),
+    enabled: !!activeWorkflowId && !isBatch && !data.src,
+    structuralSharing: (oldData, newData) => {
+      if (oldData && oldData !== newData) URL.revokeObjectURL(oldData as string)
+      return newData
+    },
+  })
   useEffect(() => {
-    if (isBatch || data.src) return
-    loadWorkflowInput(activeWorkflowId, id).then((url) => {
-      if (url) patchNodeData(activeWorkflowId, id, { src: url })
-    })
-  }, [])
+    if (savedUrl) patchNodeData(activeWorkflowId, id, { src: savedUrl })
+  }, [savedUrl])
 
   function switchMode(toBatch: boolean) {
     if (toBatch === isBatch) return
@@ -169,7 +177,8 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       const src = ev.target?.result as string
       patchNodeData(activeWorkflowId, id, { src, srcFilename })
       const blob = await fetch(src).then((r) => r.blob())
-      saveWorkflowInput(activeWorkflowId, id, blob)
+      await saveWorkflowInput(activeWorkflowId, id, blob)
+      queryClient.invalidateQueries({ queryKey: ['workflow-input', activeWorkflowId, id] })
     }
     reader.readAsDataURL(file)
   }

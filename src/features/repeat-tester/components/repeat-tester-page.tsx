@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { IconUpload } from '@tabler/icons-react'
 import type { PreviewSettings } from '@/features/preview/types'
 import {
@@ -14,8 +15,17 @@ import { useSettingsStore } from '@/shared/stores/settings-store'
 import { cn } from '@/shared/lib/utils'
 
 export function RepeatTesterPage() {
+  const queryClient = useQueryClient()
   const { previewPreferences, setPreviewPreferences } = useSettingsStore()
-  const [dataUrl, setDataUrl] = useState<string | null>(null)
+  const { data: dataUrl = null } = useQuery({
+    queryKey: ['repeat-tester-image'],
+    queryFn: loadRepeatTesterImage,
+    structuralSharing: (oldData, newData) => {
+      if (oldData && oldData !== newData) URL.revokeObjectURL(oldData as string)
+      return newData
+    },
+  })
+
   const [sliderPos, setSliderPos] = useState(50)
   const [showSettings, setShowSettings] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -27,21 +37,15 @@ export function RepeatTesterPage() {
     sliderPos,
   }
 
-  useEffect(() => {
-    loadRepeatTesterImage().then((url) => {
-      if (url) setDataUrl(url)
-    })
-  }, [])
-
   function loadFile(file: File) {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
     reader.onload = async (e) => {
       const result = e.target?.result
       if (typeof result === 'string') {
-        setDataUrl(result)
         const blob = await fetch(result).then((r) => r.blob())
-        saveRepeatTesterImage(blob)
+        await saveRepeatTesterImage(blob)
+        queryClient.invalidateQueries({ queryKey: ['repeat-tester-image'] })
       }
     }
     reader.readAsDataURL(file)
