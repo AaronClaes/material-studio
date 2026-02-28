@@ -1,6 +1,7 @@
 export class FileCollection {
   private name: string
   private dirPromise: Promise<FileSystemDirectoryHandle> | null = null
+  private urlCache = new Map<string, { lastModified: number; url: string }>()
 
   constructor(name: string) {
     this.name = name
@@ -55,7 +56,17 @@ export class FileCollection {
 
   async getFileUrl(fileName: string): Promise<string> {
     const file = await this.readFile(fileName)
-    return URL.createObjectURL(file)
+    const cached = this.urlCache.get(fileName)
+
+    if (cached && cached.lastModified === file.lastModified) {
+      return cached.url
+    }
+
+    // Revoke old URL if it exists
+    if (cached) URL.revokeObjectURL(cached.url)
+    const url = URL.createObjectURL(file)
+    this.urlCache.set(fileName, { lastModified: file.lastModified, url })
+    return url
   }
 
   async listFiles(): Promise<Array<string>> {

@@ -38,16 +38,6 @@ export function MaterialViewerPage() {
   const { data: maps = {} } = useQuery({
     queryKey: ['material-viewer-maps'],
     queryFn: loadMaterialViewerMaps,
-    structuralSharing: (oldData, newData) => {
-      const old = oldData as typeof maps | undefined
-      const next = newData as typeof maps
-      if (old) {
-        Object.entries(old).forEach(([key, url]) => {
-          if (url && next[key as MapKey] !== url) URL.revokeObjectURL(url)
-        })
-      }
-      return next
-    },
   })
 
   const [isDragging, setIsDragging] = useState(false)
@@ -165,11 +155,15 @@ export function MaterialViewerPage() {
                 onUpload={async (dataUrl) => {
                   const blob = await fetch(dataUrl).then((r) => r.blob())
                   await saveMaterialViewerMap(def.key, blob)
-                  queryClient.invalidateQueries({ queryKey: ['material-viewer-maps'] })
+                  queryClient.invalidateQueries({
+                    queryKey: ['material-viewer-maps'],
+                  })
                 }}
                 onRemove={async () => {
                   await deleteMaterialViewerMap(def.key)
-                  queryClient.invalidateQueries({ queryKey: ['material-viewer-maps'] })
+                  queryClient.invalidateQueries({
+                    queryKey: ['material-viewer-maps'],
+                  })
                 }}
                 isExternalDragTarget={dragTargetKey === def.key}
                 onDragTargetEnter={(key) => setDragTargetKey(key)}

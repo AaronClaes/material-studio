@@ -52,10 +52,6 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
     queryKey: ['workflow-input', activeWorkflowId, id],
     queryFn: () => loadWorkflowInput(activeWorkflowId, id),
     enabled: !!activeWorkflowId && !isBatch && !data.src,
-    structuralSharing: (oldData, newData) => {
-      if (oldData && oldData !== newData) URL.revokeObjectURL(oldData as string)
-      return newData
-    },
   })
   useEffect(() => {
     if (savedUrl) patchNodeData(activeWorkflowId, id, { src: savedUrl })
@@ -178,7 +174,9 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       patchNodeData(activeWorkflowId, id, { src, srcFilename })
       const blob = await fetch(src).then((r) => r.blob())
       await saveWorkflowInput(activeWorkflowId, id, blob)
-      queryClient.invalidateQueries({ queryKey: ['workflow-input', activeWorkflowId, id] })
+      queryClient.invalidateQueries({
+        queryKey: ['workflow-input', activeWorkflowId, id],
+      })
     }
     reader.readAsDataURL(file)
   }

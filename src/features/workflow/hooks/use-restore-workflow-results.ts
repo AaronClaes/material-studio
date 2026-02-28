@@ -15,16 +15,6 @@ export function useRestoreWorkflowResults(workflowId: string) {
     queryKey: ['workflow-results', workflowId],
     queryFn: () => loadAllWorkflowResults(workflowId),
     enabled: !!workflowId && !hasResults,
-    structuralSharing: (oldData, newData) => {
-      const old = oldData as Record<string, string> | undefined
-      const next = newData as Record<string, string>
-      if (old) {
-        Object.values(old).forEach((url) => {
-          if (!Object.values(next).includes(url)) URL.revokeObjectURL(url)
-        })
-      }
-      return next
-    },
   })
 
   useEffect(() => {

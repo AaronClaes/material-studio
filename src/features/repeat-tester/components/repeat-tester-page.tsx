@@ -20,10 +20,6 @@ export function RepeatTesterPage() {
   const { data: dataUrl = null } = useQuery({
     queryKey: ['repeat-tester-image'],
     queryFn: loadRepeatTesterImage,
-    structuralSharing: (oldData, newData) => {
-      if (oldData && oldData !== newData) URL.revokeObjectURL(oldData as string)
-      return newData
-    },
   })
 
   const [sliderPos, setSliderPos] = useState(50)
