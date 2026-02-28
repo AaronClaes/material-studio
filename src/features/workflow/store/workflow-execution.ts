@@ -1,5 +1,5 @@
 import { getDownstreamIds, runFromNode, runSingleNode } from '../lib/execution'
-import { useRunStore } from '../lib/run-store'
+import { formatTimestamp } from '../lib/run-utils'
 import { updateWorkflow } from './workflow-crud'
 import {
   getWorkflow,
@@ -9,17 +9,65 @@ import {
 } from './workflow-callbacks'
 import { buildRunItems, saveOutputNodes } from './workflow-output-saver'
 import { runBatchCollect } from './workflow-batch'
+import { useRunHistoryStore } from './run-history-store'
+import type { RunResultItem, WorkflowRun } from '../lib/run-store'
 import type { StoreGet, StoreSet } from './workflow-types'
 import type { ExecutionResults } from '@/features/workflow/types'
-import type { RunResultItem } from '../lib/run-store'
+import type { RunMeta, RunItem } from '@/shared/lib/run-history-types'
 import { notify } from '@/shared/stores/settings-store'
 import {
   deleteWorkflowResults,
+  saveRunFile,
   saveWorkflowResult,
 } from '@/shared/lib/image-opfs'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
 import { getGPUDevice } from '@/shared/gpu'
 import { dataUrlToGPUBuffer, processInputNode } from '@/shared/gpu/processors'
+
+async function saveToRunHistory(run: WorkflowRun): Promise<void> {
+  const persistedItems: Array<RunItem> = await Promise.all(
+    run.items.map(async (item) => {
+      const chain = await Promise.all(
+        item.chain.map(async (step) => {
+          let storedFile: string | null = null
+          if (step.outputDataUrl) {
+            try {
+              storedFile = await saveRunFile(
+                run.workflowId,
+                run.id,
+                step.nodeId,
+                item.inputFilename,
+                step.outputDataUrl,
+              )
+            } catch {}
+          }
+          return { nodeId: step.nodeId, nodeData: step.nodeData, storedFile }
+        }),
+      )
+      const lastStepId = item.chain.at(-1)?.nodeId
+      const storedFile =
+        chain.find((s) => s.nodeId === lastStepId)?.storedFile ?? null
+      return {
+        outputNodeId: item.outputNodeId,
+        storedFile,
+        inputFilename: item.inputFilename,
+        inputNodeId: item.inputNodeId,
+        chain,
+      }
+    }),
+  )
+
+  const meta: RunMeta = {
+    id: run.id,
+    name: run.name,
+    workflowId: run.workflowId,
+    completedAt: run.completedAt,
+    durationMs: run.durationMs,
+    items: persistedItems,
+  }
+
+  useRunHistoryStore.getState().saveRun(meta)
+}
 
 async function persistResults(
   workflowId: string,
@@ -51,7 +99,6 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       if (!wf || wf.isRunning) return
 
       const startTime = Date.now()
-      useRunStore.getState().clearRun(workflowId)
 
       const { nodes, edges } = wf
 
@@ -71,12 +118,16 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       )
       if (regularInputs.length === 0) {
         if (allBatchItems.length > 0) {
-          useRunStore.getState().saveRun({
+          const completedAt = Date.now()
+          const run: WorkflowRun = {
+            id: crypto.randomUUID(),
+            name: formatTimestamp(completedAt),
             workflowId,
-            completedAt: Date.now(),
-            durationMs: Date.now() - startTime,
+            completedAt,
+            durationMs: completedAt - startTime,
             items: allBatchItems,
-          })
+          }
+          saveToRunHistory(run).catch(() => {})
           const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
           notify(`${wfName} complete`, {
             body: `${allBatchItems.length} output(s) processed`,
@@ -158,12 +209,16 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         }))
         const items = [...allBatchItems, ...regularItems]
         if (items.length > 0) {
-          useRunStore.getState().saveRun({
+          const completedAt = Date.now()
+          const run: WorkflowRun = {
+            id: crypto.randomUUID(),
+            name: formatTimestamp(completedAt),
             workflowId,
-            completedAt: Date.now(),
-            durationMs: Date.now() - startTime,
+            completedAt,
+            durationMs: completedAt - startTime,
             items,
-          })
+          }
+          saveToRunHistory(run).catch(() => {})
           const wfName = getWorkflow(get, workflowId)?.name ?? 'Workflow'
           notify(`${wfName} complete`, {
             body: `${items.length} output(s) processed`,

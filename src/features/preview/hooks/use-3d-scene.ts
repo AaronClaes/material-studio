@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import type { Preview3DShape } from '../types'
 import { useEnvironmentStore } from '@/shared/stores/environment-store'
 import { useModelStore } from '@/shared/stores/model-store'
@@ -11,21 +11,21 @@ export const PRESET_ENV_FILES: Record<string, string> = {
 }
 
 export function useEnvironmentFile(environmentId: string): string {
-  const { environments, getBlobUrl: getEnvBlobUrl } = useEnvironmentStore()
-  const [environmentFile, setEnvironmentFile] = useState('/hdri/sky-env.jpg')
+  const { getBlobUrl: getEnvBlobUrl } = useEnvironmentStore()
 
-  useEffect(() => {
-    if (environmentId.startsWith('custom:')) {
-      const id = environmentId.slice(7)
-      getEnvBlobUrl(id).then((url) => {
-        if (url) setEnvironmentFile(url)
-      })
-    } else {
-      setEnvironmentFile(PRESET_ENV_FILES[environmentId] ?? '/hdri/sky-env.jpg')
-    }
-  }, [environmentId, environments, getEnvBlobUrl])
+  const { data } = useSuspenseQuery({
+    queryKey: ['environment-file', environmentId],
+    queryFn: async () => {
+      if (environmentId.startsWith('custom:')) {
+        const id = environmentId.slice(7)
+        const url = await getEnvBlobUrl(id)
+        return url ?? '/hdri/sky-env.jpg'
+      }
+      return PRESET_ENV_FILES[environmentId] ?? '/hdri/sky-env.jpg'
+    },
+  })
 
-  return environmentFile
+  return data
 }
 
 export function useCustomModelUrl(
@@ -33,15 +33,14 @@ export function useCustomModelUrl(
   customModelId: string | null,
 ): string | null {
   const { getBlobUrl } = useModelStore()
-  const [customModelUrl, setCustomModelUrl] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!customModelId || shape !== 'custom') {
-      setCustomModelUrl(null)
-      return
-    }
-    getBlobUrl(customModelId).then(setCustomModelUrl)
-  }, [customModelId, shape, getBlobUrl])
+  const { data } = useSuspenseQuery({
+    queryKey: ['custom-model-url', shape, customModelId],
+    queryFn: async () => {
+      if (!customModelId || shape !== 'custom') return null
+      return getBlobUrl(customModelId)
+    },
+  })
 
-  return customModelUrl
+  return data
 }

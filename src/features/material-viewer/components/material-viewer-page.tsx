@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   MATERIAL_MAPS,
@@ -31,6 +31,14 @@ import { useSettingsStore } from '@/shared/stores/settings-store'
 import { useModelStore } from '@/shared/stores/model-store'
 
 export function MaterialViewerPage() {
+  return (
+    <Suspense>
+      <MaterialViewerPageInner />
+    </Suspense>
+  )
+}
+
+function MaterialViewerPageInner() {
   const queryClient = useQueryClient()
   const [materialType, setMaterialType] = useState<MaterialType>(
     'MeshStandardMaterial',

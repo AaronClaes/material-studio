@@ -1,10 +1,11 @@
+import { Suspense } from 'react'
+import { useCustomModelUrl, useEnvironmentFile } from '../hooks/use-3d-scene'
 import { ImageView } from './image-view'
 import { RepeatView } from './repeat-view'
 import { Preview3DView } from './preview-3d-view'
 import { SplitView } from './split-view'
 import { Split3DView } from './split-3d-view'
 import { OverlayView } from './overlay-view'
-import { useCustomModelUrl, useEnvironmentFile } from '../hooks/use-3d-scene'
 import type { PreviewSettings } from '../types'
 import { useModelStore } from '@/shared/stores/model-store'
 
@@ -17,7 +18,15 @@ interface PreviewViewportProps {
   onSliderChange: (pos: number) => void
 }
 
-export function PreviewViewport({
+export function PreviewViewport(props: PreviewViewportProps) {
+  return (
+    <Suspense>
+      <PreviewViewportInner {...props} />
+    </Suspense>
+  )
+}
+
+function PreviewViewportInner({
   dataUrl,
   title,
   settings,

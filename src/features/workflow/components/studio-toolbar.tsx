@@ -27,8 +27,8 @@ interface StudioToolbarProps {
   onExportWorkflow: () => void
   onDuplicateWorkflow: () => void
   canDeleteWorkflow: boolean
-  hasLatestRun: boolean
-  onViewLatestRun: () => void
+  hasHistory: boolean
+  onViewHistory: () => void
 }
 
 export function StudioToolbar({
@@ -41,8 +41,8 @@ export function StudioToolbar({
   onExportWorkflow,
   onDuplicateWorkflow,
   canDeleteWorkflow,
-  hasLatestRun,
-  onViewLatestRun,
+  hasHistory,
+  onViewHistory,
 }: StudioToolbarProps) {
   const {
     editingId,
@@ -82,15 +82,15 @@ export function StudioToolbar({
           ))}
       </div>
       <div className="h-full flex items-center gap-1 pr-2 py-2">
-        {hasLatestRun && !isRunning && (
+        {hasHistory && (
           <Button
             size="sm"
             variant="outline"
-            onClick={onViewLatestRun}
+            onClick={onViewHistory}
             className="gap-1.5"
           >
             <IconClipboardList size={14} />
-            View Latest Run
+            View History
           </Button>
         )}
         <Button

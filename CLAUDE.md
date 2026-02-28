@@ -9,3 +9,11 @@ A node-based texture/image processing studio built with TanStack Start, React 19
 - Use WebGPU for node processors when it makes sense.
 
 - The design system uses no border radius except for fully rounded elements.
+
+- Use tanstack query for async operations
+
+- Store files via OPFS
+
+- Store data in Zustand & persist with middleware
+
+- Prevent using useEffect when alternatives are possible.

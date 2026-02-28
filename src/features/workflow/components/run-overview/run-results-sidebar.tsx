@@ -1,7 +1,7 @@
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/shared/lib/utils'
-import type { ResultGroup } from './run-utils'
+import type { ResultGroup } from '@/features/workflow/lib/run-utils'
 import type { StudioNode } from '@/features/workflow/types'
 
 interface RunResultsSidebarProps {

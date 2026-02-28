@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { RunResultItem, WorkflowRun } from '@/features/workflow/lib/run-store'
-import { groupResults, type ResultGroup } from './run-utils'
+import { groupResults } from './run-utils'
+import type { ResultGroup } from './run-utils'
+import type {
+  RunResultItem,
+  WorkflowRun,
+} from '@/features/workflow/lib/run-store'
 
 export function useRunNavigation(run: WorkflowRun | null) {
   const [activeKey, setActiveKey] = useState<string | null>(null)

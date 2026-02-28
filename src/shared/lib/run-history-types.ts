@@ -1,24 +1,26 @@
 import type { StudioNodeData } from '@/features/workflow/types'
 
-export interface RunChainStep {
+export interface RunStep {
   nodeId: string
   nodeData: StudioNodeData
-  outputDataUrl: string | null
+  storedFile: string | null
 }
 
-export interface RunResultItem {
+export interface RunItem {
   outputNodeId: string
-  outputDataUrl: string | null
+  storedFile: string | null
   inputFilename: string
   inputNodeId: string
-  chain: Array<RunChainStep>
+  chain: Array<RunStep>
 }
 
-export interface WorkflowRun {
+export interface RunMeta {
   id: string
   name: string
   workflowId: string
   completedAt: number
   durationMs: number
-  items: Array<RunResultItem>
+  items: Array<RunItem>
 }
+
+export type RunHistory = Array<RunMeta>

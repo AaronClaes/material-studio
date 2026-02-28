@@ -6,9 +6,9 @@ import {
   RepeatWrapping,
   SRGBColorSpace,
 } from 'three'
+import { MATERIAL_CONSTRUCTORS } from './loaded-mesh'
 import type { Material, Texture } from 'three'
 import type { MapDef, MaterialType } from '../lib/material-definitions'
-import { MATERIAL_CONSTRUCTORS } from './loaded-mesh'
 
 export function CustomModelMesh({
   modelUrl,

@@ -27,7 +27,7 @@ import { useRestoreWorkflowResults } from '../hooks/use-restore-workflow-results
 import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
 import { WorkflowPanel } from './workflow-panel'
-import { RunOverviewDialog } from './run-overview/run-overview-dialog'
+import { WorkflowHistoryDialog } from './run-overview/workflow-history-dialog'
 import type {
   Connection,
   EdgeChange,
@@ -39,7 +39,7 @@ import {
   useWorkflowStore,
 } from '@/features/workflow/store/workflow-store'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
-import { useRunStore } from '@/features/workflow/lib/run-store'
+import { useRunHistoryStore } from '@/features/workflow/store/run-history-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
@@ -70,11 +70,13 @@ export function StudioCanvas() {
 
   const directoryHandles = useDirectoryStore((s) => s.handles)
 
-  const hasUnseenRun = useRunStore((s) =>
+  const hasUnseenRun = useRunHistoryStore((s) =>
     s.unseenWorkflowIds.includes(activeWorkflowId),
   )
-  const latestRun = useRunStore((s) => s.latestRuns[activeWorkflowId] ?? null)
-  const markSeen = useRunStore((s) => s.markSeen)
+  const markSeen = useRunHistoryStore((s) => s.markSeen)
+  const hasHistory = useRunHistoryStore(
+    (s) => s.history[activeWorkflowId].length > 0,
+  )
   const [overviewOpen, setOverviewOpen] = useState(false)
 
   useDirectoryRestore()
@@ -129,13 +131,13 @@ export function StudioCanvas() {
           }
           onDuplicateWorkflow={() => duplicateWorkflow(activeWorkflowId)}
           canDeleteWorkflow={workflows.length > 1}
-          hasLatestRun={!!latestRun}
-          onViewLatestRun={() => setOverviewOpen(true)}
+          hasHistory={hasHistory}
+          onViewHistory={() => setOverviewOpen(true)}
         />
-        <RunOverviewDialog
+        <WorkflowHistoryDialog
           open={overviewOpen}
           onOpenChange={setOverviewOpen}
-          run={latestRun}
+          workflowId={activeWorkflowId}
           nodes={activeWorkflow?.nodes ?? []}
         />
         <div className="flex flex-1 overflow-hidden">

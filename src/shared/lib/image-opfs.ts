@@ -5,6 +5,7 @@ const workflowInputs = new FileCollection('workflow-inputs')
 const workflowResults = new FileCollection('workflow-results')
 const repeatTester = new FileCollection('repeat-tester')
 const materialViewer = new FileCollection('material-viewer')
+const runHistoryCollection = new FileCollection('workflow-run-history')
 
 // Workflow inputs (single file mode)
 export async function saveWorkflowInput(
@@ -129,4 +130,61 @@ export async function deleteMaterialViewerMap(mapKey: MapKey): Promise<void> {
   } catch {
     // ignore if not found
   }
+}
+
+// Run history
+export async function saveRunFile(
+  workflowId: string,
+  runId: string,
+  nodeId: string,
+  inputFilename: string,
+  blobUrl: string,
+): Promise<string> {
+  const safeFilename = inputFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const filename = `${workflowId}--${runId}--${nodeId}--${safeFilename}.png`
+  const blob = await fetch(blobUrl).then((r) => r.blob())
+  await runHistoryCollection.writeFile(filename, blob)
+  return filename
+}
+
+export async function loadRunFiles(
+  workflowId: string,
+  runId: string,
+): Promise<Record<string, string>> {
+  const prefix = `${workflowId}--${runId}--`
+  const files = await runHistoryCollection.listFiles()
+  const matching = files.filter(
+    (f) => f.startsWith(prefix) && f.endsWith('.png'),
+  )
+  const entries = await Promise.all(
+    matching.map(async (f) => {
+      const url = await runHistoryCollection.getFileUrl(f)
+      return [f, url] as [string, string]
+    }),
+  )
+  return Object.fromEntries(entries)
+}
+
+export async function loadRunCoverUrl(
+  storedFile: string | null,
+): Promise<string | null> {
+  if (!storedFile) return null
+  try {
+    return await runHistoryCollection.getFileUrl(storedFile)
+  } catch {
+    return null
+  }
+}
+
+export async function deleteRunFromHistory(
+  workflowId: string,
+  runId: string,
+): Promise<void> {
+  const files = await runHistoryCollection.listFiles()
+  const prefix = `${workflowId}--${runId}--`
+  await Promise.all(
+    files
+      .filter((f) => f.startsWith(prefix))
+      .map((f) => runHistoryCollection.deleteFile(f).catch(() => {})),
+  )
 }
