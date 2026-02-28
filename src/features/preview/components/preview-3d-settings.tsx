@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { IconPlus } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
 import { TextureRepeatControl } from './texture-repeat-control'
@@ -24,21 +23,8 @@ export function Preview3DSettingsContent({
   settings: PreviewSettings
   onSettingsChange: (patch: Partial<PreviewSettings>) => void
 }) {
-  const { models, loaded, loadModels, updateSelectedMaterials } =
-    useModelStore()
-  const {
-    environments,
-    loaded: envsLoaded,
-    loadEnvironments,
-  } = useEnvironmentStore()
-
-  useEffect(() => {
-    loadModels()
-  }, [loadModels])
-
-  useEffect(() => {
-    loadEnvironments()
-  }, [loadEnvironments])
+  const { models, updateSelectedMaterials } = useModelStore()
+  const { environments } = useEnvironmentStore()
 
   const customModel = settings.customModelId
     ? models.find((m) => m.id === settings.customModelId)
@@ -86,7 +72,7 @@ export function Preview3DSettingsContent({
             <SelectItem value="plane" className="text-xs">
               Plane
             </SelectItem>
-            {loaded && models.length > 0 && (
+            {models.length > 0 && (
               <>
                 <SelectSeparator />
                 {models.map((model) => (
@@ -162,7 +148,7 @@ export function Preview3DSettingsContent({
             <SelectItem value="studio" className="text-xs">
               Studio
             </SelectItem>
-            {envsLoaded && environments.length > 0 && (
+            {environments.length > 0 && (
               <>
                 <SelectSeparator />
                 {environments.map((env) => (

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Mesh } from 'three'
 import { FileCollection } from '../lib/opfs'
@@ -15,8 +16,6 @@ export interface CustomModelMeta {
 interface ModelStore {
   models: Array<CustomModelMeta>
   blobUrls: Record<string, string>
-  loaded: boolean
-  loadModels: () => Promise<void>
   addModel: (file: File) => Promise<void>
   removeModel: (id: string) => void
   updateSelectedMaterials: (id: string, selected: Array<string>) => void
@@ -61,100 +60,73 @@ function extractMaterialNames(data: ArrayBuffer): Promise<Array<string>> {
   })
 }
 
-export const useModelStore = create<ModelStore>((set, get) => ({
-  models: [],
-  blobUrls: {},
-  loaded: false,
+export const useModelStore = create<ModelStore>()(
+  persist(
+    (set, get) => ({
+      models: [],
+      blobUrls: {},
 
-  loadModels: async () => {
-    if (get().loaded) return
-    try {
-      const meta = await collection.readMeta<Array<CustomModelMeta>>()
-      set({ models: meta ?? [], loaded: true })
-    } catch {
-      set({ loaded: true })
-    }
-  },
+      addModel: async (file: File) => {
+        const data = await file.arrayBuffer()
+        const materialNames = await extractMaterialNames(data.slice(0))
+        const id = crypto.randomUUID()
+        const name = file.name.replace(/\.glb$/i, '')
+        const fileName = `${id}.glb`
 
-  addModel: async (file: File) => {
-    const data = await file.arrayBuffer()
-    const materialNames = await extractMaterialNames(data.slice(0))
-    const id = crypto.randomUUID()
-    const name = file.name.replace(/\.glb$/i, '')
-    const fileName = `${id}.glb`
+        const meta: CustomModelMeta = {
+          id,
+          name,
+          fileName,
+          materialNames,
+          selectedMaterials: [...materialNames],
+        }
 
-    const meta: CustomModelMeta = {
-      id,
-      name,
-      fileName,
-      materialNames,
-      selectedMaterials: [...materialNames],
-    }
+        await collection.writeFile(fileName, file)
+        set((s) => ({ models: [...s.models, meta] }))
+      },
 
-    await collection.writeFile(fileName, file)
-    const existing = (await collection.readMeta<Array<CustomModelMeta>>()) ?? []
-    await collection.writeMeta([...existing, meta])
+      removeModel: (id: string) => {
+        const { blobUrls, models } = get()
+        const model = models.find((m) => m.id === id)
+        if (blobUrls[id]) {
+          URL.revokeObjectURL(blobUrls[id])
+        }
+        set((s) => ({
+          models: s.models.filter((m) => m.id !== id),
+          blobUrls: Object.fromEntries(
+            Object.entries(s.blobUrls).filter(([k]) => k !== id),
+          ),
+        }))
+        if (model) {
+          collection.deleteFile(model.fileName).catch(() => {})
+        }
+      },
 
-    set((s) => ({ models: [...s.models, meta] }))
-  },
+      updateSelectedMaterials: (id: string, selected: Array<string>) => {
+        set((s) => ({
+          models: s.models.map((m) =>
+            m.id === id ? { ...m, selectedMaterials: selected } : m,
+          ),
+        }))
+      },
 
-  removeModel: (id: string) => {
-    const { blobUrls, models } = get()
-    const model = models.find((m) => m.id === id)
-    if (blobUrls[id]) {
-      URL.revokeObjectURL(blobUrls[id])
-    }
-    set((s) => ({
-      models: s.models.filter((m) => m.id !== id),
-      blobUrls: Object.fromEntries(
-        Object.entries(s.blobUrls).filter(([k]) => k !== id),
-      ),
-    }))
-    if (model) {
-      Promise.all([
-        collection.deleteFile(model.fileName).catch(() => {}),
-        collection
-          .readMeta<Array<CustomModelMeta>>()
-          .then((meta) =>
-            collection.writeMeta(
-              (meta ?? []).filter((m) => m.id !== id),
-            ),
-          )
-          .catch(() => {}),
-      ])
-    }
-  },
-
-  updateSelectedMaterials: (id: string, selected: Array<string>) => {
-    set((s) => ({
-      models: s.models.map((m) =>
-        m.id === id ? { ...m, selectedMaterials: selected } : m,
-      ),
-    }))
-    collection
-      .readMeta<Array<CustomModelMeta>>()
-      .then((meta) => {
-        if (!meta) return
-        const updated = meta.map((m) =>
-          m.id === id ? { ...m, selectedMaterials: selected } : m,
-        )
-        return collection.writeMeta(updated)
-      })
-      .catch(() => {})
-  },
-
-  getBlobUrl: async (id: string) => {
-    const existing = get().blobUrls[id]
-    if (existing) return existing
-    try {
-      if (!get().loaded) await get().loadModels()
-      const model = get().models.find((m) => m.id === id)
-      if (!model) return null
-      const url = await collection.getFileUrl(model.fileName)
-      set((s) => ({ blobUrls: { ...s.blobUrls, [id]: url } }))
-      return url
-    } catch {
-      return null
-    }
-  },
-}))
+      getBlobUrl: async (id: string) => {
+        const existing = get().blobUrls[id]
+        if (existing) return existing
+        try {
+          const model = get().models.find((m) => m.id === id)
+          if (!model) return null
+          const url = await collection.getFileUrl(model.fileName)
+          set((s) => ({ blobUrls: { ...s.blobUrls, [id]: url } }))
+          return url
+        } catch {
+          return null
+        }
+      },
+    }),
+    {
+      name: 'material-studio-models',
+      partialize: (s) => ({ models: s.models }),
+    },
+  ),
+)

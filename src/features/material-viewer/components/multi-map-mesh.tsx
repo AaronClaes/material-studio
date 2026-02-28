@@ -1,7 +1,7 @@
-import type { Preview3DShape } from '@/features/preview/types'
-import type { MapDef, MapKey, MaterialType } from '../lib/material-definitions'
 import { EmptyMesh, LoadedMesh } from './loaded-mesh'
 import { CustomModelMesh } from './custom-model-mesh'
+import type { Preview3DShape } from '@/features/preview/types'
+import type { MapDef, MapKey, MaterialType } from '../lib/material-definitions'
 
 export function MultiMapMesh({
   maps,

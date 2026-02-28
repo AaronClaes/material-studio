@@ -104,14 +104,12 @@ export function WorkflowHistoryDialog({
   }
 
   useEffect(() => {
-    console.log('activeKey changed', activeKey)
     setSelectedStepId(null)
     setEphemeral(DEFAULT_EPHEMERAL)
     setShowSettings(false)
   }, [activeKey])
 
   useEffect(() => {
-    console.log('selectedRun changed', selectedRun)
     reset()
     setEphemeral(DEFAULT_EPHEMERAL)
     setShowSettings(false)

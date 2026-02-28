@@ -38,22 +38,6 @@ export class FileCollection {
     await dir.removeEntry(fileName)
   }
 
-  async readMeta<T>(): Promise<T | null> {
-    try {
-      const file = await this.readFile('_meta.json')
-      const text = await file.text()
-      return JSON.parse(text) as T
-    } catch {
-      return null
-    }
-  }
-
-  async writeMeta<T>(data: T): Promise<void> {
-    const json = JSON.stringify(data)
-    const blob = new Blob([json], { type: 'application/json' })
-    await this.writeFile('_meta.json', blob)
-  }
-
   async getFileUrl(fileName: string): Promise<string> {
     const file = await this.readFile(fileName)
     const cached = this.urlCache.get(fileName)
@@ -72,8 +56,8 @@ export class FileCollection {
   async listFiles(): Promise<Array<string>> {
     const dir = await this.getDir()
     const names: Array<string> = []
-    for await (const [name] of (dir as any).entries()) {
-      if (name !== '_meta.json') names.push(name)
+    for await (const name of (dir as any).keys()) {
+      names.push(name)
     }
     return names
   }

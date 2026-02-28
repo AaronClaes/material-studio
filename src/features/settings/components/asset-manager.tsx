@@ -10,7 +10,6 @@ export interface AssetItem {
 
 interface AssetManagerProps {
   items: Array<AssetItem>
-  loaded: boolean
   accept: string
   uploadLabel: string
   emptyMessage: string
@@ -20,7 +19,6 @@ interface AssetManagerProps {
 
 export function AssetManager({
   items,
-  loaded,
   accept,
   uploadLabel,
   emptyMessage,
@@ -35,8 +33,6 @@ export function AssetManager({
     await onUpload(file)
     if (inputRef.current) inputRef.current.value = ''
   }
-
-  if (!loaded) return null
 
   return (
     <div className="space-y-3">

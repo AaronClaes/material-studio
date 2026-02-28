@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import type {
+  CompareCandidate,
+  PreviewSettings,
+  PreviewView,
+} from '@/features/preview/components'
 import {
   PreviewSettingsPanel,
   PreviewToolbar,
   PreviewViewport,
 } from '@/features/preview/components'
-import type { CompareCandidate, PreviewSettings, PreviewView } from '@/features/preview/components'
 import {
   Dialog,
   DialogClose,
@@ -92,7 +96,11 @@ export function PreviewModal({
       onViewChange(patch.view)
     }
     const { compareId, viewMode, sliderPos, ...persistable } = patch
-    if (compareId !== undefined || viewMode !== undefined || sliderPos !== undefined) {
+    if (
+      compareId !== undefined ||
+      viewMode !== undefined ||
+      sliderPos !== undefined
+    ) {
       setEphemeral((s) => ({
         ...s,
         ...(compareId !== undefined && { compareId }),
@@ -148,7 +156,9 @@ export function PreviewModal({
             settings={settings}
             compareDataUrl={compareDataUrl}
             compareLabel={compareLabel}
-            onSliderChange={(sliderPos) => setEphemeral((s) => ({ ...s, sliderPos }))}
+            onSliderChange={(sliderPos) =>
+              setEphemeral((s) => ({ ...s, sliderPos }))
+            }
           />
         </div>
       </DialogContent>
