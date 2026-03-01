@@ -75,7 +75,7 @@ export function StudioCanvas() {
   )
   const markSeen = useRunHistoryStore((s) => s.markSeen)
   const hasHistory = useRunHistoryStore(
-    (s) => s.history[activeWorkflowId].length > 0,
+    (s) => (s.history[activeWorkflowId] ?? []).length > 0,
   )
   const [overviewOpen, setOverviewOpen] = useState(false)
 

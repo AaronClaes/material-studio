@@ -24,16 +24,19 @@ export function useDirectoryRestore() {
     )
 
     restoreHandles(dirNodeIds, (nodeId) =>
-      nodeById[nodeId].data.kind === 'outputNode' ? 'readwrite' : 'read',
+      nodeById[nodeId]?.data.kind === 'outputNode' ? 'readwrite' : 'read',
     ).then(() => {
       const handles = useDirectoryStore.getState().handles
       for (const nodeId of dirNodeIds) {
         const node = nodeById[nodeId]
+        if (!node) continue
         if (node.data.kind !== 'inputNode') continue
         const handle = handles[nodeId]
         if (!handle) continue
+        const wfId = workflowByNode[nodeId]
+        if (!wfId) continue
         readDirectoryPreview(handle).then((preview) => {
-          patchNodeData(workflowByNode[nodeId], nodeId, {
+          patchNodeData(wfId, nodeId, {
             ...preview,
             processedCount: 0,
           })

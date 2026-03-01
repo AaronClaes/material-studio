@@ -68,7 +68,7 @@ export function SliderRow({
         max={max}
         step={step}
         value={[value]}
-        onValueChange={([v]) => onChange(v)}
+        onValueChange={([v]) => { if (v !== undefined) onChange(v) }}
         className="h-4"
       />
     </div>

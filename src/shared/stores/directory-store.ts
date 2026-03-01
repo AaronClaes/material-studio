@@ -75,8 +75,9 @@ export async function readDirectoryPreview(
 
   let src = ''
   let srcFilename = ''
-  if (entries.length > 0) {
-    const file = await entries[0].getFile()
+  const firstEntry = entries[0]
+  if (firstEntry) {
+    const file = await firstEntry.getFile()
     srcFilename = file.name.replace(/\.[^.]+$/, '')
     src = await fileToDataUrl(file)
   }
@@ -122,6 +123,7 @@ export const useDirectoryStore = create<DirectoryStore>((set) => ({
 
       for (const nodeId of nodeIds) {
         const handle = stored[nodeId]
+        if (!handle) continue
         try {
           const mode = getMode(nodeId)
           const ok = await verifyPermission(handle, mode)

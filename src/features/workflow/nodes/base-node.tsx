@@ -71,7 +71,7 @@ export function BaseNode({
     event.stopPropagation()
     if (!resultPreview) return
 
-    const mime = resultPreview.split(';')[0].split(':')[1] ?? 'image/png'
+    const mime = (resultPreview.split(';')[0] ?? '').split(':')[1] ?? 'image/png'
     const ext = mime.split('/')[1] ?? 'png'
     const a = document.createElement('a')
     a.href = resultPreview

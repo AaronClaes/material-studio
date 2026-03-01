@@ -50,7 +50,7 @@ export function TextureRepeatControl({
         max={max}
         step={1}
         value={[value]}
-        onValueChange={([next]) => onChange(clamp(next))}
+        onValueChange={([next]) => { if (next !== undefined) onChange(clamp(next)) }}
         className="h-4"
       />
     </div>

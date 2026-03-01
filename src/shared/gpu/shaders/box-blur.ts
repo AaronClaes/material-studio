@@ -194,11 +194,11 @@ export function runBlurSharp(
     const tmpH = createStorageBuffer(device, bufferSize)
     const tmpA = createStorageBuffer(device, bufferSize)
     const tmpB = createStorageBuffer(device, bufferSize)
-    const vTargets = [tmpA, tmpB, tmpA]
+    const vTargets: [GPUBuffer, GPUBuffer, GPUBuffer] = [tmpA, tmpB, tmpA]
 
     const encoder = device.createCommandEncoder()
 
-    for (let i = 0; i < 3; i++) {
+    for (const vTarget of vTargets) {
       blurPass(
         device,
         encoder,
@@ -214,10 +214,10 @@ export function runBlurSharp(
         vPipeline,
         uniformBuffer,
         tmpH,
-        vTargets[i],
+        vTarget,
         workgroups,
       )
-      current = vTargets[i]
+      current = vTarget
     }
 
     device.queue.submit([encoder.finish()])

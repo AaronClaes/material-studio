@@ -39,13 +39,13 @@ function hydrateRun(
     durationMs: meta.durationMs,
     items: meta.items.map((item) => ({
       outputNodeId: item.outputNodeId,
-      outputDataUrl: item.storedFile ? fileMap[item.storedFile] : null,
+      outputDataUrl: item.storedFile ? (fileMap[item.storedFile] ?? null) : null,
       inputFilename: item.inputFilename,
       inputNodeId: item.inputNodeId,
       chain: item.chain.map((step) => ({
         nodeId: step.nodeId,
         nodeData: step.nodeData,
-        outputDataUrl: step.storedFile ? fileMap[step.storedFile] : null,
+        outputDataUrl: step.storedFile ? (fileMap[step.storedFile] ?? null) : null,
       })),
     })),
   }
@@ -71,7 +71,10 @@ export function useRunOverview(workflowId: string) {
 
   const { data: fileMap, isLoading: isHydrating } = useQuery({
     queryKey: ['run-files', workflowId, effectiveRunId],
-    queryFn: () => loadRunFiles(workflowId, effectiveRunId),
+    queryFn: () => {
+      if (!effectiveRunId) return Promise.resolve({} as Record<string, string>)
+      return loadRunFiles(workflowId, effectiveRunId)
+    },
     enabled: !!effectiveRunId,
   })
 
@@ -166,12 +169,17 @@ export function useRunOverview(workflowId: string) {
   }
 
   function navigateUp() {
-    if (currentFlatIndex > 0) selectItem(flatKeys[currentFlatIndex - 1])
+    if (currentFlatIndex > 0) {
+      const key = flatKeys[currentFlatIndex - 1]
+      if (key) selectItem(key)
+    }
   }
 
   function navigateDown() {
-    if (currentFlatIndex < flatKeys.length - 1)
-      selectItem(flatKeys[currentFlatIndex + 1])
+    if (currentFlatIndex < flatKeys.length - 1) {
+      const key = flatKeys[currentFlatIndex + 1]
+      if (key) selectItem(key)
+    }
   }
 
   function updatePreviewSettings(patch: Partial<PreviewSettings>) {
@@ -214,7 +222,7 @@ export function useRunOverview(workflowId: string) {
     // Run list
     metaList,
     isHydrating,
-    selectedRunId: effectiveRunId,
+    selectedRunId: effectiveRunId ?? null,
     selectRun,
     selectedRun,
     deleteRun,
@@ -223,7 +231,7 @@ export function useRunOverview(workflowId: string) {
     resultGroups,
     flatKeys,
     currentFlatIndex,
-    selectedItemKey: effectiveItemKey,
+    selectedItemKey: effectiveItemKey ?? null,
     selectedItem,
     selectItem,
     navigateUp,

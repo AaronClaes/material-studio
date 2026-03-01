@@ -34,24 +34,24 @@ function computeLeftSeamMask(
     for (let x = 0; x < overlap; x++) {
       const si = ((chosenSrcY + y) * srcW + (chosenSrcX + x)) * 4
       const ci = ((outY + y) * outW + (outX + x)) * 4
-      const dr = srcPixelData[si] - shadow[ci]
-      const dg = srcPixelData[si + 1] - shadow[ci + 1]
-      const db = srcPixelData[si + 2] - shadow[ci + 2]
+      const dr = (srcPixelData[si] ?? 0) - (shadow[ci] ?? 0)
+      const dg = (srcPixelData[si + 1] ?? 0) - (shadow[ci + 1] ?? 0)
+      const db = (srcPixelData[si + 2] ?? 0) - (shadow[ci + 2] ?? 0)
       cost[y * overlap + x] = dr * dr + dg * dg + db * db
     }
   }
 
   const dp = new Float32Array(patch * overlap)
   for (let x = 0; x < overlap; x++) {
-    dp[x] = cost[x]
+    dp[x] = cost[x] ?? 0
   }
   for (let y = 1; y < patch; y++) {
     for (let x = 0; x < overlap; x++) {
-      let best = dp[(y - 1) * overlap + x]
-      if (x > 0) best = Math.min(best, dp[(y - 1) * overlap + (x - 1)])
+      let best = dp[(y - 1) * overlap + x] ?? 0
+      if (x > 0) best = Math.min(best, dp[(y - 1) * overlap + (x - 1)] ?? Infinity)
       if (x < overlap - 1)
-        best = Math.min(best, dp[(y - 1) * overlap + (x + 1)])
-      dp[y * overlap + x] = cost[y * overlap + x] + best
+        best = Math.min(best, dp[(y - 1) * overlap + (x + 1)] ?? Infinity)
+      dp[y * overlap + x] = (cost[y * overlap + x] ?? 0) + best
     }
   }
 
@@ -59,21 +59,21 @@ function computeLeftSeamMask(
   let minVal = Infinity
   let minX = 0
   for (let x = 0; x < overlap; x++) {
-    if (dp[(patch - 1) * overlap + x] < minVal) {
-      minVal = dp[(patch - 1) * overlap + x]
+    if ((dp[(patch - 1) * overlap + x] ?? Infinity) < minVal) {
+      minVal = dp[(patch - 1) * overlap + x] ?? minVal
       minX = x
     }
   }
   seamCol[patch - 1] = minX
   for (let y = patch - 2; y >= 0; y--) {
-    const cx = seamCol[y + 1]
+    const cx = seamCol[y + 1] ?? 0
     let bestX = cx
-    let bestV = dp[y * overlap + cx]
-    if (cx > 0 && dp[y * overlap + (cx - 1)] < bestV) {
-      bestV = dp[y * overlap + (cx - 1)]
+    let bestV = dp[y * overlap + cx] ?? Infinity
+    if (cx > 0 && (dp[y * overlap + (cx - 1)] ?? Infinity) < bestV) {
+      bestV = dp[y * overlap + (cx - 1)] ?? bestV
       bestX = cx - 1
     }
-    if (cx < overlap - 1 && dp[y * overlap + (cx + 1)] < bestV) {
+    if (cx < overlap - 1 && (dp[y * overlap + (cx + 1)] ?? Infinity) < bestV) {
       bestX = cx + 1
     }
     seamCol[y] = bestX
@@ -82,7 +82,7 @@ function computeLeftSeamMask(
   const mask = new Uint32Array(patch * patch)
   for (let y = 0; y < patch; y++) {
     for (let x = 0; x < patch; x++) {
-      mask[y * patch + x] = x >= seamCol[y] ? 1 : 0
+      mask[y * patch + x] = x >= (seamCol[y] ?? 0) ? 1 : 0
     }
   }
   return mask
@@ -106,9 +106,9 @@ function computeTopSeamMask(
     for (let x = 0; x < patch; x++) {
       const si = ((chosenSrcY + y) * srcW + (chosenSrcX + x)) * 4
       const ci = ((outY + y) * outW + (outX + x)) * 4
-      const dr = srcPixelData[si] - shadow[ci]
-      const dg = srcPixelData[si + 1] - shadow[ci + 1]
-      const db = srcPixelData[si + 2] - shadow[ci + 2]
+      const dr = (srcPixelData[si] ?? 0) - (shadow[ci] ?? 0)
+      const dg = (srcPixelData[si + 1] ?? 0) - (shadow[ci + 1] ?? 0)
+      const db = (srcPixelData[si + 2] ?? 0) - (shadow[ci + 2] ?? 0)
       cost[y * patch + x] = dr * dr + dg * dg + db * db
     }
   }
@@ -116,15 +116,15 @@ function computeTopSeamMask(
   // dp[x * overlap + y] = min cost to reach (x, y) along horizontal path
   const dp = new Float32Array(patch * overlap)
   for (let y = 0; y < overlap; y++) {
-    dp[y] = cost[y * patch + 0]
+    dp[y] = cost[y * patch + 0] ?? 0
   }
   for (let x = 1; x < patch; x++) {
     for (let y = 0; y < overlap; y++) {
-      let best = dp[(x - 1) * overlap + y]
-      if (y > 0) best = Math.min(best, dp[(x - 1) * overlap + (y - 1)])
+      let best = dp[(x - 1) * overlap + y] ?? 0
+      if (y > 0) best = Math.min(best, dp[(x - 1) * overlap + (y - 1)] ?? Infinity)
       if (y < overlap - 1)
-        best = Math.min(best, dp[(x - 1) * overlap + (y + 1)])
-      dp[x * overlap + y] = cost[y * patch + x] + best
+        best = Math.min(best, dp[(x - 1) * overlap + (y + 1)] ?? Infinity)
+      dp[x * overlap + y] = (cost[y * patch + x] ?? 0) + best
     }
   }
 
@@ -132,21 +132,21 @@ function computeTopSeamMask(
   let minVal = Infinity
   let minY = 0
   for (let y = 0; y < overlap; y++) {
-    if (dp[(patch - 1) * overlap + y] < minVal) {
-      minVal = dp[(patch - 1) * overlap + y]
+    if ((dp[(patch - 1) * overlap + y] ?? Infinity) < minVal) {
+      minVal = dp[(patch - 1) * overlap + y] ?? minVal
       minY = y
     }
   }
   seamRow[patch - 1] = minY
   for (let x = patch - 2; x >= 0; x--) {
-    const cy = seamRow[x + 1]
+    const cy = seamRow[x + 1] ?? 0
     let bestY = cy
-    let bestV = dp[x * overlap + cy]
-    if (cy > 0 && dp[x * overlap + (cy - 1)] < bestV) {
-      bestV = dp[x * overlap + (cy - 1)]
+    let bestV = dp[x * overlap + cy] ?? Infinity
+    if (cy > 0 && (dp[x * overlap + (cy - 1)] ?? Infinity) < bestV) {
+      bestV = dp[x * overlap + (cy - 1)] ?? bestV
       bestY = cy - 1
     }
-    if (cy < overlap - 1 && dp[x * overlap + (cy + 1)] < bestV) {
+    if (cy < overlap - 1 && (dp[x * overlap + (cy + 1)] ?? Infinity) < bestV) {
       bestY = cy + 1
     }
     seamRow[x] = bestY
@@ -155,7 +155,7 @@ function computeTopSeamMask(
   const mask = new Uint32Array(patch * patch)
   for (let y = 0; y < patch; y++) {
     for (let x = 0; x < patch; x++) {
-      mask[y * patch + x] = y >= seamRow[x] ? 1 : 0
+      mask[y * patch + x] = y >= (seamRow[x] ?? 0) ? 1 : 0
     }
   }
   return mask
@@ -244,10 +244,10 @@ export async function processQuiltingNode(
         const threshold = minSSD * params.errorTolerance
         const candidates: Array<number> = []
         for (let i = 0; i < ssdValues.length; i++) {
-          if (ssdValues[i] <= threshold) candidates.push(i)
+          if ((ssdValues[i] ?? Infinity) <= threshold) candidates.push(i)
         }
 
-        const chosenIdx = candidates[prng() % candidates.length]
+        const chosenIdx = candidates[prng() % candidates.length] ?? 0
         chosenSrcX = (chosenIdx % candCols) * step
         chosenSrcY = Math.floor(chosenIdx / candCols) * step
 
@@ -281,7 +281,7 @@ export async function processQuiltingNode(
           )
           seamMask = new Uint32Array(patch * patch)
           for (let i = 0; i < patch * patch; i++) {
-            seamMask[i] = leftMask[i] | topMask[i]
+            seamMask[i] = (leftMask[i] ?? 0) | (topMask[i] ?? 0)
           }
         } else if (hasLeft) {
           seamMask = computeLeftSeamMask(
@@ -343,10 +343,10 @@ export async function processQuiltingNode(
             const shadowOff = (cy * outW + cx) * 4
             const srcOff =
               ((chosenSrcY + py) * input.width + (chosenSrcX + px)) * 4
-            shadow[shadowOff] = srcPixelData[srcOff]
-            shadow[shadowOff + 1] = srcPixelData[srcOff + 1]
-            shadow[shadowOff + 2] = srcPixelData[srcOff + 2]
-            shadow[shadowOff + 3] = srcPixelData[srcOff + 3]
+            shadow[shadowOff] = srcPixelData[srcOff] ?? 0
+            shadow[shadowOff + 1] = srcPixelData[srcOff + 1] ?? 0
+            shadow[shadowOff + 2] = srcPixelData[srcOff + 2] ?? 0
+            shadow[shadowOff + 3] = srcPixelData[srcOff + 3] ?? 0
           }
         }
       }

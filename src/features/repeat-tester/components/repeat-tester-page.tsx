@@ -67,6 +67,7 @@ export function RepeatTesterPage() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
+    if (!file) return
     loadFile(file)
   }
 

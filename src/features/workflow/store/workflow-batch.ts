@@ -52,7 +52,9 @@ export async function runBatchCollect(
   const capturedUrls = new Set<string>()
 
   for (let i = 0; i < fileHandles.length; i++) {
-    const file = await fileHandles[i].getFile()
+    const fileHandle = fileHandles[i]
+    if (!fileHandle) continue
+    const file = await fileHandle.getFile()
     const stem = file.name.replace(/\.[^.]+$/, '')
     const fileDataUrl = await fileToDataUrl(file)
 
