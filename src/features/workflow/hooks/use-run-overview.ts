@@ -15,6 +15,9 @@ import { deleteRunFromHistory, loadRunFiles } from '@/shared/lib/image-opfs'
 import { groupResults } from '@/features/workflow/lib/run-utils'
 import { useSettingsStore } from '@/shared/stores/settings-store'
 
+// Stable fallback — prevents useSyncExternalStore from seeing a new object every render
+const EMPTY_META: Array<RunMeta> = []
+
 interface EphemeralSettings {
   compareId: string | null
   viewMode: 'split' | 'overlay'
@@ -39,13 +42,17 @@ function hydrateRun(
     durationMs: meta.durationMs,
     items: meta.items.map((item) => ({
       outputNodeId: item.outputNodeId,
-      outputDataUrl: item.storedFile ? (fileMap[item.storedFile] ?? null) : null,
+      outputDataUrl: item.storedFile
+        ? (fileMap[item.storedFile] ?? null)
+        : null,
       inputFilename: item.inputFilename,
       inputNodeId: item.inputNodeId,
       chain: item.chain.map((step) => ({
         nodeId: step.nodeId,
         nodeData: step.nodeData,
-        outputDataUrl: step.storedFile ? (fileMap[step.storedFile] ?? null) : null,
+        outputDataUrl: step.storedFile
+          ? (fileMap[step.storedFile] ?? null)
+          : null,
       })),
     })),
   }
@@ -62,7 +69,9 @@ export function useRunOverview(workflowId: string) {
   const [ephemeral, setEphemeral] = useState(DEFAULT_EPHEMERAL)
   const [showSettings, setShowSettings] = useState(false)
 
-  const metaList = useRunHistoryStore((s) => s.history[workflowId] ?? [])
+  const metaList = useRunHistoryStore(
+    (s) => s.history[workflowId] ?? EMPTY_META,
+  )
   const storeDeleteRun = useRunHistoryStore((s) => s.deleteRun)
   const storeRenameRun = useRunHistoryStore((s) => s.renameRun)
 
