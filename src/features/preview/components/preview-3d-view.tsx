@@ -2,6 +2,7 @@ import { Suspense, useDeferredValue, useEffect, useMemo, useRef } from 'react'
 import {
   Environment,
   OrbitControls,
+  useEnvironment,
   useGLTF,
   useTexture,
 } from '@react-three/drei'
@@ -19,6 +20,13 @@ import type { Preview3DShape } from '../types'
 
 export function DeferredEnvironment({ file }: { file: string }) {
   const deferredEnvironmentFile = useDeferredValue(file)
+
+  useEffect(() => {
+    return () => {
+      useEnvironment.clear({ files: [deferredEnvironmentFile] })
+    }
+  }, [deferredEnvironmentFile])
+
   return <Environment files={[deferredEnvironmentFile]} />
 }
 
@@ -86,7 +94,7 @@ export function Preview3DView({
   )
 }
 
-function TexturedMesh({
+export function TexturedMesh({
   dataUrl,
   shape,
   textureRepeat,
@@ -124,7 +132,7 @@ function TexturedMesh({
   )
 }
 
-function CustomModelMesh({
+export function CustomModelMesh({
   dataUrl,
   modelUrl,
   textureRepeat,

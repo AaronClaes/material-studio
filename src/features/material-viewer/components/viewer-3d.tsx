@@ -1,7 +1,7 @@
+import { MultiMapMesh } from './multi-map-mesh'
 import type { Preview3DShape } from '@/features/preview/types'
 import type { MapDef, MapKey, MaterialType } from '../lib/material-definitions'
 import { Preview3DCanvas } from '@/features/preview/components'
-import { MultiMapMesh } from './multi-map-mesh'
 
 interface Viewer3DProps {
   maps: Partial<Record<MapKey, string>>
