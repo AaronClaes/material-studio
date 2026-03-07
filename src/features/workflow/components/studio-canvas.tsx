@@ -38,6 +38,8 @@ import {
   exportWorkflow,
   useWorkflowStore,
 } from '@/features/workflow/store/workflow-store'
+import { createNode } from '@/features/workflow/lib/workflow'
+import { saveWorkflowInput } from '@/shared/lib/image-opfs'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
 import { useRunHistoryStore } from '@/features/workflow/store/run-history-store'
 
@@ -63,6 +65,7 @@ export function StudioCanvas() {
   const onEdgesChange = useWorkflowStore((s) => s.onEdgesChange)
   const onConnect = useWorkflowStore((s) => s.onConnect)
   const addNode = useWorkflowStore((s) => s.addNode)
+  const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
   const run = useWorkflowStore((s) => s.run)
   const duplicateWorkflow = useWorkflowStore((s) => s.duplicateWorkflow)
   const renameWorkflow = useWorkflowStore((s) => s.renameWorkflow)
@@ -98,6 +101,38 @@ export function StudioCanvas() {
       n.data.kind === 'inputNode' &&
       (n.data.batch ? !!directoryHandles[n.id] : !!n.data.src),
   )
+
+  const [isDragging, setIsDragging] = useState(false)
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (!file?.type.startsWith('image/')) return
+    const node = createNode('inputNode', { x: 240, y: 160 })
+    addNode(activeWorkflowId, node)
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const src = ev.target?.result
+      if (typeof src !== 'string') return
+      const blob = await fetch(src).then((r) => r.blob())
+      await saveWorkflowInput(activeWorkflowId, node.id, blob)
+      patchNodeData(activeWorkflowId, node.id, { src, srcFilename: file.name })
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleNodesChange = useCallback(
     (changes: Array<NodeChange>) => onNodesChange(activeWorkflowId, changes),
@@ -141,7 +176,12 @@ export function StudioCanvas() {
           nodes={activeWorkflow?.nodes ?? []}
         />
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 relative">
+          <div
+            className="flex-1 relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <FloatingAddNode
               onAddNode={(node) => addNode(activeWorkflowId, node)}
             />
@@ -162,6 +202,9 @@ export function StudioCanvas() {
               <Controls />
               <MiniMap />
             </ReactFlow>
+            {isDragging && (
+              <div className="pointer-events-none absolute inset-0 border-2 border-dashed border-primary bg-primary/10" />
+            )}
           </div>
         </div>
       </div>
