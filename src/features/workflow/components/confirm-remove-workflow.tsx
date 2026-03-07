@@ -47,7 +47,8 @@ export function ConfirmRemoveWorkflow({
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete the
-            workflow.
+            workflow and all associated files including inputs, results, and run
+            history.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {hasDependantWorkflows && (

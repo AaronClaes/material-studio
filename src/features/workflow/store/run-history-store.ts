@@ -8,6 +8,7 @@ interface RunHistoryStore {
 
   saveRun: (meta: RunMeta) => void
   deleteRun: (workflowId: string, runId: string) => void
+  deleteWorkflowHistory: (workflowId: string) => void
   renameRun: (workflowId: string, runId: string, name: string) => void
   markSeen: (workflowId: string) => void
 }
@@ -38,6 +39,15 @@ export const useRunHistoryStore = create<RunHistoryStore>()(
             ),
           },
         })),
+
+      deleteWorkflowHistory: (workflowId) =>
+        set((s) => {
+          const { [workflowId]: _removed, ...history } = s.history
+          return {
+            history,
+            unseenWorkflowIds: s.unseenWorkflowIds.filter((id) => id !== workflowId),
+          }
+        }),
 
       renameRun: (workflowId, runId, name) =>
         set((s) => ({

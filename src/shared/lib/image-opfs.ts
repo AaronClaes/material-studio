@@ -87,6 +87,16 @@ export async function deleteWorkflowResults(workflowId: string): Promise<void> {
   )
 }
 
+export async function deleteAllWorkflowInputs(workflowId: string): Promise<void> {
+  const files = await workflowInputs.listFiles()
+  const prefix = `${workflowId}-`
+  await Promise.all(
+    files
+      .filter((f) => f.startsWith(prefix))
+      .map((f) => workflowInputs.deleteFile(f).catch(() => {})),
+  )
+}
+
 // Repeat tester
 export async function saveRepeatTesterImage(blob: Blob): Promise<void> {
   await repeatTester.writeFile('image.png', blob)
@@ -174,6 +184,16 @@ export async function loadRunCoverUrl(
   } catch {
     return null
   }
+}
+
+export async function deleteAllWorkflowRunFiles(workflowId: string): Promise<void> {
+  const files = await runHistoryCollection.listFiles()
+  const prefix = `${workflowId}--`
+  await Promise.all(
+    files
+      .filter((f) => f.startsWith(prefix))
+      .map((f) => runHistoryCollection.deleteFile(f).catch(() => {})),
+  )
 }
 
 export async function deleteRunFromHistory(
