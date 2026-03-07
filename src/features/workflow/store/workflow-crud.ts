@@ -1,6 +1,13 @@
 import { createInitialGraph } from '../lib/workflow'
 import type { StudioEdge, StudioNode } from '@/features/workflow/types'
 import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
+import {
+  deleteAllWorkflowInputs,
+  deleteAllWorkflowRunFiles,
+  deleteWorkflowResults,
+} from '@/shared/lib/image-opfs'
+import { useRunHistoryStore } from './run-history-store'
+import { useDirectoryStore } from '@/shared/stores/directory-store'
 
 export let _workflowCounter = 1
 
@@ -81,13 +88,39 @@ export function buildCrudActions(set: StoreSet, get: StoreGet) {
     deleteWorkflow: (id: string) => {
       const { workflows, activeWorkflowId } = get()
       if (workflows.length <= 1) return
+
+      const deletedWorkflow = workflows.find((w) => w.id === id)
       const remaining = workflows.filter((w) => w.id !== id)
       const nextActive =
         activeWorkflowId === id
           ? (remaining[remaining.length - 1]?.id ?? remaining[0]?.id ?? activeWorkflowId)
           : activeWorkflowId
 
-      set({ workflows: remaining, activeWorkflowId: nextActive })
+      // Repair broken workflowNode references in remaining workflows
+      const repairedRemaining = remaining.map((w) => ({
+        ...w,
+        nodes: w.nodes.map((n) =>
+          n.type === 'workflowNode' && n.data.kind === 'workflowNode' && n.data.workflowId === id
+            ? { ...n, data: { ...n.data, workflowId: undefined } }
+            : n,
+        ),
+      }))
+
+      set({ workflows: repairedRemaining, activeWorkflowId: nextActive })
+
+      // Async cleanup (fire-and-forget)
+      void Promise.all([
+        deleteAllWorkflowInputs(id),
+        deleteWorkflowResults(id),
+        deleteAllWorkflowRunFiles(id),
+      ])
+      useRunHistoryStore.getState().deleteWorkflowHistory(id)
+      if (deletedWorkflow) {
+        const { clearHandle } = useDirectoryStore.getState()
+        for (const node of deletedWorkflow.nodes) {
+          clearHandle(node.id)
+        }
+      }
     },
 
     setActiveWorkflowId: (id: string) => set({ activeWorkflowId: id }),
