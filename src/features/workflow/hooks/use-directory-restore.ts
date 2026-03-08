@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
-import { readDirectoryPreview, useDirectoryStore } from '@/shared/stores/directory-store'
+import {
+  readDirectoryPreview,
+  useDirectoryStore,
+} from '@/shared/stores/directory-store'
 import { useWorkflowStore } from '@/features/workflow/store/workflow-store'
 
 export function useDirectoryRestore() {

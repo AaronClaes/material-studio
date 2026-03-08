@@ -55,7 +55,6 @@ async function verifyPermission(
   return false
 }
 
-
 export async function readDirectoryPreview(
   handle: FileSystemDirectoryHandle,
 ): Promise<{

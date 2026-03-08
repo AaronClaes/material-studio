@@ -1,5 +1,8 @@
 import JSZip from 'jszip'
-import type { RunResultItem, WorkflowRun } from '@/features/workflow/lib/run-store'
+import type {
+  RunResultItem,
+  WorkflowRun,
+} from '@/features/workflow/lib/run-store'
 import type { StudioNode } from '@/features/workflow/types'
 
 async function downloadBlob(url: string, filename: string) {

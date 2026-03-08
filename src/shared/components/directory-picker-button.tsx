@@ -36,10 +36,7 @@ export function DirectoryPickerButton({
         </>
       ) : (
         <>
-          <IconFolder
-            size={13}
-            className="shrink-0 text-muted-foreground"
-          />
+          <IconFolder size={13} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">Choose folder…</span>
         </>
       )}

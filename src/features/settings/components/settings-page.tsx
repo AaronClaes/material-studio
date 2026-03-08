@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import { IconArrowLeft } from '@tabler/icons-react'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { NotificationSettings } from './notification-settings'
 import { ModelManager } from './model-manager'
 import { EnvironmentManager } from './environment-manager'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 
 export function SettingsPage() {
   return (

@@ -1,3 +1,9 @@
+import type {
+  GPUImageBuffer,
+  StudioEdge,
+  StudioNode,
+  StudioNodeData,
+} from '@/features/workflow/types'
 import {
   processAomapNode,
   processColorNode,
@@ -10,12 +16,6 @@ import {
   processResolutionNode,
 } from '@/shared/gpu/processors'
 import { getGPUDevice, gpuBufferToObjectUrl } from '@/shared/gpu'
-import type {
-  GPUImageBuffer,
-  StudioEdge,
-  StudioNode,
-  StudioNodeData,
-} from '@/features/workflow/types'
 
 export function topoSort(
   nodes: Array<StudioNode>,
@@ -135,12 +135,14 @@ function getIdsBetweenNodes(
   return betweenIds
 }
 
-function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
-  const map = new Map<string, string>()
+function buildIncomingEdgesMap(
+  edges: Array<StudioEdge>,
+): Map<string, Array<string>> {
+  const map = new Map<string, Array<string>>()
   for (const edge of edges) {
-    // First edge wins — prevents non-deterministic behaviour when multiple
-    // edges target the same node (fan-in).
-    if (!map.has(edge.target)) map.set(edge.target, edge.source)
+    const list = map.get(edge.target) ?? []
+    list.push(edge.source)
+    map.set(edge.target, list)
   }
   return map
 }
@@ -149,46 +151,52 @@ function seedInitialInput(
   startNodeId: string,
   initialInput: GPUImageBuffer | undefined,
   edges: Array<StudioEdge>,
-  incomingEdge: Map<string, string>,
-  outputs: Map<string, GPUImageBuffer>,
+  incomingEdges: Map<string, Array<string>>,
+  outputs: Map<string, Array<GPUImageBuffer>>,
 ) {
   if (!initialInput) return
 
   const upstreamEdge = edges.find((e) => e.target === startNodeId)
   if (upstreamEdge) {
-    incomingEdge.set(startNodeId, upstreamEdge.source)
-    outputs.set(upstreamEdge.source, initialInput)
+    incomingEdges.set(startNodeId, [upstreamEdge.source])
+    outputs.set(upstreamEdge.source, [initialInput])
     return
   }
 
   const seedId = `__initial-input__${startNodeId}`
-  incomingEdge.set(startNodeId, seedId)
-  outputs.set(seedId, initialInput)
+  incomingEdges.set(startNodeId, [seedId])
+  outputs.set(seedId, [initialInput])
 }
 
 /** Destroy all unique GPUBuffers held in the outputs map. */
-function destroyAllOutputs(outputs: Map<string, GPUImageBuffer>): void {
+function destroyAllOutputs(outputs: Map<string, Array<GPUImageBuffer>>): void {
   const destroyed = new Set<GPUBuffer>()
-  for (const img of outputs.values()) {
-    if (!destroyed.has(img.buffer)) {
-      img.buffer.destroy()
-      destroyed.add(img.buffer)
+  for (const imgs of outputs.values()) {
+    for (const img of imgs) {
+      if (!destroyed.has(img.buffer)) {
+        img.buffer.destroy()
+        destroyed.add(img.buffer)
+      }
     }
   }
 }
 
-/** Destroy all outputs EXCEPT the one for keepId (used for nested workflow cleanup). */
+/** Destroy all outputs EXCEPT those for keepId (used for nested workflow cleanup). */
 function destroyOutputsExcept(
-  outputs: Map<string, GPUImageBuffer>,
+  outputs: Map<string, Array<GPUImageBuffer>>,
   keepId: string,
 ): void {
-  const keepBuffer = outputs.get(keepId)?.buffer
+  const keepBuffers = new Set(
+    (outputs.get(keepId) ?? []).map((img) => img.buffer),
+  )
   const destroyed = new Set<GPUBuffer>()
-  for (const img of outputs.values()) {
-    if (img.buffer === keepBuffer) continue
-    if (!destroyed.has(img.buffer)) {
-      img.buffer.destroy()
-      destroyed.add(img.buffer)
+  for (const imgs of outputs.values()) {
+    for (const img of imgs) {
+      if (keepBuffers.has(img.buffer)) continue
+      if (!destroyed.has(img.buffer)) {
+        img.buffer.destroy()
+        destroyed.add(img.buffer)
+      }
     }
   }
 }
@@ -214,14 +222,14 @@ async function runGraphSlice(options: {
 
   const order = topoSort(nodesToRun, edgesToRun)
   const nodeMap = new Map(options.nodes.map((node) => [node.id, node]))
-  const incomingEdge = buildIncomingEdgeMap(edgesToRun)
-  const outputs = new Map<string, GPUImageBuffer>()
+  const incomingEdges = buildIncomingEdgesMap(edgesToRun)
+  const outputs = new Map<string, Array<GPUImageBuffer>>()
 
   seedInitialInput(
     options.startNodeId,
     options.initialInput,
     options.edges,
-    incomingEdge,
+    incomingEdges,
     outputs,
   )
 
@@ -229,7 +237,7 @@ async function runGraphSlice(options: {
     options.device,
     order,
     nodeMap,
-    incomingEdge,
+    incomingEdges,
     outputs,
     options.callbacks,
     options.runOptions,
@@ -265,14 +273,14 @@ async function runGraphSliceRetaining(options: {
 
   const order = topoSort(nodesToRun, edgesToRun)
   const nodeMap = new Map(options.nodes.map((node) => [node.id, node]))
-  const incomingEdge = buildIncomingEdgeMap(edgesToRun)
-  const outputs = new Map<string, GPUImageBuffer>()
+  const incomingEdges = buildIncomingEdgesMap(edgesToRun)
+  const outputs = new Map<string, Array<GPUImageBuffer>>()
 
   seedInitialInput(
     options.startNodeId,
     options.initialInput,
     options.edges,
-    incomingEdge,
+    incomingEdges,
     outputs,
   )
 
@@ -280,14 +288,19 @@ async function runGraphSliceRetaining(options: {
     options.device,
     order,
     nodeMap,
-    incomingEdge,
+    incomingEdges,
     outputs,
     NOOP_CALLBACKS,
     options.runOptions,
   )
 
-  const output = outputs.get(options.endNodeId)
-  if (!output) throw new Error('Selected end node did not produce output')
+  const outputArr = outputs.get(options.endNodeId)
+  if (!outputArr?.length)
+    throw new Error('Selected end node did not produce output')
+  // For nested workflows, return the first instance (nested workflows have a
+  // single linear execution path — fan-in inside a nested workflow is not
+  // expected to fan-out into the parent graph).
+  const output = outputArr[0]!
 
   destroyOutputsExcept(outputs, options.endNodeId)
 
@@ -445,13 +458,17 @@ async function processNode(
  * Walks a slice of the topological order, processing each node and threading
  * outputs downstream. `outputs` is mutated in place so callers can pre-seed
  * upstream results before calling (used by `runFromNode`).
+ *
+ * Fan-in: when a node has multiple incoming edges, it runs once per upstream
+ * instance (the upstream output arrays are concatenated). Each instance
+ * produces an independent GPUImageBuffer stored in the node's output array.
  */
 async function executeOrder(
   device: GPUDevice,
   order: Array<string>,
   nodeMap: Map<string, StudioNode>,
-  incomingEdge: Map<string, string>,
-  outputs: Map<string, GPUImageBuffer>,
+  incomingEdges: Map<string, Array<string>>,
+  outputs: Map<string, Array<GPUImageBuffer>>,
   callbacks: RunCallbacks,
   runOptions?: RunOptions,
 ): Promise<void> {
@@ -461,21 +478,29 @@ async function executeOrder(
     const node = nodeMap.get(id)
     if (!node) continue
 
-    const upstreamId = incomingEdge.get(id)
+    const upstreamIds = incomingEdges.get(id) ?? []
 
-    // Skip if upstream failed — no point processing downstream nodes
-    if (upstreamId && failed.has(upstreamId)) {
+    // Collect all upstream output instances (fan-in: concatenate arrays)
+    const inputs: Array<GPUImageBuffer> = []
+    for (const upstreamId of upstreamIds) {
+      const upstreamOutputs = outputs.get(upstreamId) ?? []
+      inputs.push(...upstreamOutputs)
+    }
+
+    // All upstreams failed → propagate failure
+    const allUpstreamsFailed =
+      upstreamIds.length > 0 && upstreamIds.every((uid) => failed.has(uid))
+    if (allUpstreamsFailed) {
       failed.add(id)
       callbacks.onNodeError(id, 'Skipped: upstream node failed')
       continue
     }
 
-    // Skip disabled nodes — thread upstream data through unchanged
+    // Skip disabled nodes — thread upstream data through unchanged (first instance)
     if (node.data.kind !== 'inputNode' && node.data.disabled) {
-      const upstreamData = upstreamId ? outputs.get(upstreamId) : undefined
-      if (upstreamData) {
-        outputs.set(id, upstreamData)
-        const dataUrl = await gpuBufferToObjectUrl(device, upstreamData)
+      if (inputs.length > 0) {
+        outputs.set(id, inputs)
+        const dataUrl = await gpuBufferToObjectUrl(device, inputs[0]!)
         callbacks.onNodeSkipped(id, dataUrl)
       }
       continue
@@ -483,11 +508,18 @@ async function executeOrder(
 
     callbacks.onNodeStart(id)
 
+    // Root node (no upstreams): run once with undefined input
+    const runInputs: Array<GPUImageBuffer | undefined> =
+      inputs.length > 0 ? inputs : [undefined]
+
     try {
-      const input = upstreamId ? outputs.get(upstreamId) : undefined
-      const result = await processNode(device, node.data, input, runOptions)
-      outputs.set(id, result.gpuBuffer)
-      callbacks.onNodeDone(id, result.dataUrl)
+      const instanceBuffers: Array<GPUImageBuffer> = []
+      for (const input of runInputs) {
+        const result = await processNode(device, node.data, input, runOptions)
+        instanceBuffers.push(result.gpuBuffer)
+        callbacks.onNodeDone(id, result.dataUrl)
+      }
+      outputs.set(id, instanceBuffers)
     } catch (err) {
       failed.add(id)
       callbacks.onNodeError(
@@ -522,6 +554,74 @@ export async function runSingleNode(
       err instanceof Error ? err.message : String(err),
     )
   }
+}
+
+/**
+ * Like runSingleNode but accepts multiple inputs for fan-in nodes.
+ * Calls onNodeStart once, then processes each input in sequence,
+ * emitting onNodeDone per instance so allOutputDataUrls accumulates correctly.
+ */
+export async function runSingleNodeWithInputs(
+  nodeId: string,
+  inputs: Array<GPUImageBuffer>,
+  nodes: Array<StudioNode>,
+  callbacks: RunCallbacks,
+  runOptions?: RunOptions,
+): Promise<void> {
+  const node = nodes.find((n) => n.id === nodeId)
+  if (!node) return
+
+  const device = await getGPUDevice()
+
+  callbacks.onNodeStart(nodeId)
+
+  try {
+    for (const input of inputs) {
+      const result = await processNode(device, node.data, input, runOptions)
+      callbacks.onNodeDone(nodeId, result.dataUrl)
+      result.gpuBuffer.buffer.destroy()
+    }
+  } catch (err) {
+    callbacks.onNodeError(
+      nodeId,
+      err instanceof Error ? err.message : String(err),
+    )
+  }
+}
+
+/**
+ * Like runFromNode but seeds multiple upstream GPUImageBuffers simultaneously
+ * so fan-in nodes receive all inputs in a single executeOrder pass.
+ */
+export async function runFromNodeWithInputs(
+  startNodeId: string,
+  upstreamBuffers: Map<string, GPUImageBuffer>,
+  nodes: Array<StudioNode>,
+  edges: Array<StudioEdge>,
+  callbacks: RunCallbacks,
+  runOptions?: RunOptions,
+): Promise<void> {
+  const device = await getGPUDevice()
+  const idsToRun = getDownstreamIds(startNodeId, edges)
+  const nodesToRun = nodes.filter((node) => idsToRun.has(node.id))
+  const edgesToRun = edges.filter(
+    (edge) => idsToRun.has(edge.source) && idsToRun.has(edge.target),
+  )
+  const order = topoSort(nodesToRun, edgesToRun)
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]))
+  const incomingEdges = buildIncomingEdgesMap(edgesToRun)
+  const outputs = new Map<string, Array<GPUImageBuffer>>()
+
+  // Seed all upstream inputs simultaneously so the fan-in node receives them
+  // in a single pass (vs. calling runFromNode once per upstream, which would
+  // reset allOutputDataUrls on each onNodeStart call).
+  incomingEdges.set(startNodeId, [...upstreamBuffers.keys()])
+  for (const [upstreamId, buffer] of upstreamBuffers) {
+    outputs.set(upstreamId, [buffer])
+  }
+
+  await executeOrder(device, order, nodeMap, incomingEdges, outputs, callbacks, runOptions)
+  destroyAllOutputs(outputs)
 }
 
 export function getDownstreamIds(
@@ -567,3 +667,23 @@ export async function runFromNode(
   })
 }
 
+/**
+ * Runs all nodes in a single toposorted pass. Handles fan-in correctly because
+ * every node (including multiple input roots) is processed in one executeOrder
+ * call, so fan-in nodes accumulate all upstream instances without any
+ * intermediate onNodeStart resets.
+ */
+export async function runGraph(
+  nodes: Array<StudioNode>,
+  edges: Array<StudioEdge>,
+  callbacks: RunCallbacks,
+  runOptions?: RunOptions,
+): Promise<void> {
+  const device = await getGPUDevice()
+  const order = topoSort(nodes, edges)
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  const incomingEdges = buildIncomingEdgesMap(edges)
+  const outputs = new Map<string, Array<GPUImageBuffer>>()
+  await executeOrder(device, order, nodeMap, incomingEdges, outputs, callbacks, runOptions)
+  destroyAllOutputs(outputs)
+}
