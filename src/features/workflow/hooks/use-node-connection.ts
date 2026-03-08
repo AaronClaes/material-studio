@@ -11,10 +11,12 @@ export function useNodeConnection(nodeId: string): {
   const results = useActiveWorkflowResults()
 
   const result = results[nodeId]
-  const upstreamId = edges.find((e) => e.target === nodeId)?.source
-  const upstreamResult = upstreamId ? results[upstreamId] : undefined
-  const hasValidInput =
-    upstreamResult?.status === 'done' || upstreamResult?.status === 'skipped'
+  const upstreamEdges = edges.filter((e) => e.target === nodeId)
+  const upstreamId = upstreamEdges[0]?.source
+  const hasValidInput = upstreamEdges.some((e) => {
+    const s = results[e.source]?.status
+    return s === 'done' || s === 'skipped'
+  })
 
   return { result, upstreamId, hasValidInput }
 }

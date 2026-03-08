@@ -148,5 +148,7 @@ export interface NodeResult {
   status: NodeStatus
   outputDataUrl: string | null
   error: string | null
+  /** All per-instance data URLs when the node was executed multiple times due to fan-in. */
+  allOutputDataUrls?: Array<string>
 }
 export type ExecutionResults = Record<string, NodeResult | undefined>

@@ -77,10 +77,7 @@ export function OutputNode({ id, data, selected }: NodeProps<StudioNode>) {
       <div className="flex flex-col gap-2">
         <div className="space-y-1.5">
           <Label className="text-xs">Output Location</Label>
-          <DirectoryPickerButton
-            handle={handle}
-            onPick={pickFolder}
-          />
+          <DirectoryPickerButton handle={handle} onPick={pickFolder} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Filename</Label>

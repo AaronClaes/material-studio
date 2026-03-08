@@ -84,7 +84,9 @@ export function buildCrudActions(set: StoreSet, get: StoreGet) {
       const remaining = workflows.filter((w) => w.id !== id)
       const nextActive =
         activeWorkflowId === id
-          ? (remaining[remaining.length - 1]?.id ?? remaining[0]?.id ?? activeWorkflowId)
+          ? (remaining[remaining.length - 1]?.id ??
+            remaining[0]?.id ??
+            activeWorkflowId)
           : activeWorkflowId
 
       set({ workflows: remaining, activeWorkflowId: nextActive })

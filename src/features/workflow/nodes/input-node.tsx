@@ -11,6 +11,7 @@ import {
 } from '@/shared/lib/image-opfs'
 import { Label } from '@/components/ui/label'
 import {
+  useActiveWorkflowActions,
   useActiveWorkflowIsRunning,
   useActiveWorkflowResults,
   useWorkflowStore,
@@ -27,6 +28,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
   if (data.kind !== 'inputNode') return null
 
   const queryClient = useQueryClient()
+  const { runNodesFrom } = useActiveWorkflowActions()
   const activeWorkflowId = useWorkflowStore((s) => s.activeWorkflowId)
   const patchNodeData = useWorkflowStore((s) => s.patchNodeData)
   const results = useActiveWorkflowResults()
@@ -192,7 +194,7 @@ export function InputNode({ id, data, selected }: NodeProps<StudioNode>) {
       nodeError={null}
       isRunning={isRunning}
       hasValidInput={!!data.src}
-      onRunNodes={() => useWorkflowStore.getState().run(activeWorkflowId)}
+      onRunNodes={() => runNodesFrom(id)}
       nodeId={id}
     >
       {modeToggle}

@@ -1,5 +1,9 @@
 import type { Connection, EdgeChange, NodeChange } from '@xyflow/react'
-import type { ExecutionResults, StudioEdge, StudioNode } from '@/features/workflow/types'
+import type {
+  ExecutionResults,
+  StudioEdge,
+  StudioNode,
+} from '@/features/workflow/types'
 
 export interface WorkflowDef {
   id: string

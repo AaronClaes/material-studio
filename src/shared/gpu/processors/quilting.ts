@@ -8,7 +8,7 @@ import { runQuiltingComposite } from '../shaders/quilting-composite'
 import type { GPUImageBuffer } from '@/features/workflow/types'
 
 function makeXorshift32(seed: number) {
-  let state = (seed >>> 0) || 1
+  let state = seed >>> 0 || 1
   return () => {
     state ^= state << 13
     state ^= state >>> 17
@@ -48,7 +48,8 @@ function computeLeftSeamMask(
   for (let y = 1; y < patch; y++) {
     for (let x = 0; x < overlap; x++) {
       let best = dp[(y - 1) * overlap + x] ?? 0
-      if (x > 0) best = Math.min(best, dp[(y - 1) * overlap + (x - 1)] ?? Infinity)
+      if (x > 0)
+        best = Math.min(best, dp[(y - 1) * overlap + (x - 1)] ?? Infinity)
       if (x < overlap - 1)
         best = Math.min(best, dp[(y - 1) * overlap + (x + 1)] ?? Infinity)
       dp[y * overlap + x] = (cost[y * overlap + x] ?? 0) + best
@@ -121,7 +122,8 @@ function computeTopSeamMask(
   for (let x = 1; x < patch; x++) {
     for (let y = 0; y < overlap; y++) {
       let best = dp[(x - 1) * overlap + y] ?? 0
-      if (y > 0) best = Math.min(best, dp[(x - 1) * overlap + (y - 1)] ?? Infinity)
+      if (y > 0)
+        best = Math.min(best, dp[(x - 1) * overlap + (y - 1)] ?? Infinity)
       if (y < overlap - 1)
         best = Math.min(best, dp[(x - 1) * overlap + (y + 1)] ?? Infinity)
       dp[x * overlap + y] = (cost[y * patch + x] ?? 0) + best
@@ -202,7 +204,11 @@ export async function processQuiltingNode(
   const canvasBuffer = createStorageBuffer(device, outW * outH * 4)
   const shadow = new Uint8ClampedArray(outW * outH * 4)
 
-  const canvasImg: GPUImageBuffer = { buffer: canvasBuffer, width: outW, height: outH }
+  const canvasImg: GPUImageBuffer = {
+    buffer: canvasBuffer,
+    width: outW,
+    height: outH,
+  }
   const prng = makeXorshift32(params.seed)
 
   for (let blockRow = 0; blockRow < blockRows; blockRow++) {

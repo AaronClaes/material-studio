@@ -43,22 +43,35 @@ export async function saveOutputNodes(
     if (!filter.has(node.id)) continue
     if (node.data.kind !== 'outputNode' || node.data.disabled) continue
     const result = results[node.id]
-    if (result?.status !== 'done' || !result.outputDataUrl) continue
+    if (result?.status !== 'done') continue
     const dirHandle = useDirectoryStore.getState().handles[node.id]
     if (!dirHandle) continue
     const stem =
       stemOverride !== undefined ? stemOverride : findUpstreamInputStem(node.id)
     const outputStem = (node.data.filename || 'output').replace('{name}', stem)
-    const filename = `${outputStem}.${node.data.format}`
-    try {
-      const response = await fetch(result.outputDataUrl)
-      const blob = await response.blob()
-      const fh = await dirHandle.getFileHandle(filename, { create: true })
-      const writable = await fh.createWritable()
-      await writable.write(blob)
-      await writable.close()
-    } catch (err) {
-      console.error(`Failed to save ${filename}:`, err)
+
+    const dataUrls = result.allOutputDataUrls?.length
+      ? result.allOutputDataUrls
+      : result.outputDataUrl
+        ? [result.outputDataUrl]
+        : []
+
+    for (let i = 0; i < dataUrls.length; i++) {
+      const dataUrl = dataUrls[i]!
+      const filename =
+        dataUrls.length === 1
+          ? `${outputStem}.${node.data.format}`
+          : `${outputStem}-${i + 1}.${node.data.format}`
+      try {
+        const response = await fetch(dataUrl)
+        const blob = await response.blob()
+        const fh = await dirHandle.getFileHandle(filename, { create: true })
+        const writable = await fh.createWritable()
+        await writable.write(blob)
+        await writable.close()
+      } catch (err) {
+        console.error(`Failed to save ${filename}:`, err)
+      }
     }
   }
 }
@@ -76,26 +89,39 @@ export function buildRunItems(
     (n) => !hasOutgoing.has(n.id) && results[n.id]?.status === 'done',
   )
 
-  return leafNodes.map((leaf) => {
-    const chain: RunResultItem['chain'] = []
-    let currentId: string | undefined = leaf.id
-    while (currentId) {
-      const n = nodeMap.get(currentId)
-      if (!n) break
-      const { src: _src, ...dataWithoutSrc } = n.data as Record<string, unknown>
-      chain.unshift({
-        nodeId: currentId,
-        nodeData: dataWithoutSrc as RunResultItem['chain'][number]['nodeData'],
-        outputDataUrl: results[currentId]?.outputDataUrl ?? null,
-      })
-      currentId = incomingEdge.get(currentId)
-    }
-    return {
-      outputNodeId: leaf.id,
-      outputDataUrl: results[leaf.id]?.outputDataUrl ?? null,
-      inputFilename: '',
-      inputNodeId: '',
-      chain,
-    }
+  return leafNodes.flatMap((leaf) => {
+    const leafResult = results[leaf.id]
+    const dataUrls = leafResult?.allOutputDataUrls?.length
+      ? leafResult.allOutputDataUrls
+      : leafResult?.outputDataUrl
+        ? [leafResult.outputDataUrl]
+        : []
+
+    return dataUrls.map((dataUrl) => {
+      const chain: RunResultItem['chain'] = []
+      let currentId: string | undefined = leaf.id
+      while (currentId) {
+        const n = nodeMap.get(currentId)
+        if (!n) break
+        const { src: _src, ...dataWithoutSrc } = n.data as Record<
+          string,
+          unknown
+        >
+        chain.unshift({
+          nodeId: currentId,
+          nodeData:
+            dataWithoutSrc as RunResultItem['chain'][number]['nodeData'],
+          outputDataUrl: results[currentId]?.outputDataUrl ?? null,
+        })
+        currentId = incomingEdge.get(currentId)
+      }
+      return {
+        outputNodeId: leaf.id,
+        outputDataUrl: dataUrl,
+        inputFilename: '',
+        inputNodeId: '',
+        chain,
+      }
+    })
   })
 }

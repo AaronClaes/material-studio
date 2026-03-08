@@ -45,7 +45,11 @@ function CollapseButton() {
   const isCollapsed = state === 'collapsed'
   return (
     <SidebarMenuButton onClick={toggleSidebar} tooltip="Expand sidebar">
-      {isCollapsed ? <IconLayoutSidebarLeftExpand /> : <IconLayoutSidebarLeftCollapse />}
+      {isCollapsed ? (
+        <IconLayoutSidebarLeftExpand />
+      ) : (
+        <IconLayoutSidebarLeftCollapse />
+      )}
       <span>Collapse</span>
     </SidebarMenuButton>
   )
@@ -87,7 +91,9 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.to}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.to || pathname.startsWith(item.to + '/')}
+                    isActive={
+                      pathname === item.to || pathname.startsWith(item.to + '/')
+                    }
                     tooltip={item.label}
                   >
                     <Link to={item.to}>

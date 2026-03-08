@@ -2,7 +2,10 @@ import { IconArrowsMoveVertical } from '@tabler/icons-react'
 import { BaseNode } from './base-node'
 import { SliderRow } from './slider-row'
 import type { NodeProps } from '@xyflow/react'
-import type { DisplacementNodeData, StudioNode } from '@/features/workflow/types'
+import type {
+  DisplacementNodeData,
+  StudioNode,
+} from '@/features/workflow/types'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   useActiveWorkflowActions,

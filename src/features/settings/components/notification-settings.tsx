@@ -41,8 +41,7 @@ export function NotificationSettings() {
         />
       </div>
       <p className="text-xs text-muted-foreground mb-3">
-        Ensure your browser is allowed to send notifications in system
-        settings.
+        Ensure your browser is allowed to send notifications in system settings.
       </p>
 
       {permissionDenied && (

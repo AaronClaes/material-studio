@@ -1,4 +1,10 @@
-import { getDownstreamIds, runFromNode, runSingleNode } from '../lib/execution'
+import {
+  getDownstreamIds,
+  runFromNode,
+  runFromNodeWithInputs,
+  runSingleNode,
+  runSingleNodeWithInputs,
+} from '../lib/execution'
 import { formatTimestamp } from '../lib/run-utils'
 import { updateWorkflow } from './workflow-crud'
 import {
@@ -12,7 +18,7 @@ import { runBatchCollect } from './workflow-batch'
 import { useRunHistoryStore } from './run-history-store'
 import type { RunResultItem, WorkflowRun } from '../lib/run-store'
 import type { StoreGet, StoreSet } from './workflow-types'
-import type { ExecutionResults } from '@/features/workflow/types'
+import type { ExecutionResults, GPUImageBuffer } from '@/features/workflow/types'
 import type { RunItem, RunMeta } from '@/shared/lib/run-history-types'
 import { notify } from '@/shared/stores/settings-store'
 import {
@@ -136,50 +142,90 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         return
       }
 
-      const affectedIds = new Set<string>()
-      for (const inputNode of regularInputs) {
-        for (const id of getDownstreamIds(inputNode.id, edges)) {
-          affectedIds.add(id)
+      set((s) => ({
+        workflows: updateWorkflow(s.workflows, workflowId, () => ({
+          isRunning: true,
+        })),
+      }))
+
+      const allRegularItems: Array<RunResultItem> = []
+      // Track blob URLs captured in any prior items so per-iteration resets
+      // don't revoke them before they can be shown in the run overview.
+      // Seed with batch items so the regular-input resets don't clobber them.
+      const capturedUrls = new Set<string>()
+      for (const item of allBatchItems) {
+        if (item.outputDataUrl?.startsWith('blob:'))
+          capturedUrls.add(item.outputDataUrl)
+        for (const step of item.chain) {
+          if (step.outputDataUrl?.startsWith('blob:'))
+            capturedUrls.add(step.outputDataUrl)
         }
       }
 
-      set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, (w) => {
-          const results = { ...w.results }
-          for (const id of affectedIds) {
-            revokeOldUrl(results[id]?.outputDataUrl)
-            results[id] = { status: 'idle', outputDataUrl: null, error: null }
-          }
-          return { isRunning: true, results }
-        }),
-      }))
-
-      const callbacks = makeCallbacks(set, workflowId)
-      const runOptions = makeRunOptions(get, workflowId)
+      // Process each regular input node sequentially so every output item is
+      // correctly attributed to its source input file (mirrors batch behaviour).
       for (const inputNode of regularInputs) {
-        await runFromNode(
-          inputNode.id,
-          undefined,
-          nodes,
-          edges,
-          callbacks,
-          runOptions,
-        )
         const downstreamIds = getDownstreamIds(inputNode.id, edges)
-        const afterWf = getWorkflow(get, workflowId)
-        if (afterWf) {
-          const stem =
-            inputNode.data.kind === 'inputNode'
-              ? (inputNode.data.srcFilename ?? '')
-              : undefined
-          await saveOutputNodes(
-            afterWf.nodes,
-            afterWf.edges,
-            afterWf.results,
-            downstreamIds,
-            stem,
+
+        set((s) => ({
+          workflows: updateWorkflow(s.workflows, workflowId, (w) => {
+            const results = { ...w.results }
+            for (const id of downstreamIds) {
+              const url = results[id]?.outputDataUrl
+              if (url && !capturedUrls.has(url)) revokeOldUrl(url)
+              results[id] = { status: 'idle', outputDataUrl: null, error: null }
+            }
+            return { results }
+          }),
+        }))
+
+        const callbacks = makeCallbacks(set, workflowId)
+        const runOptions = makeRunOptions(get, workflowId)
+
+        try {
+          await runFromNode(
+            inputNode.id,
+            undefined,
+            getWorkflow(get, workflowId)!.nodes,
+            edges,
+            callbacks,
+            runOptions,
           )
+        } catch (err) {
+          console.error(`Run: skipping input ${inputNode.id}:`, err)
         }
+
+        const afterWf = getWorkflow(get, workflowId)!
+        const stem =
+          inputNode.data.kind === 'inputNode'
+            ? (inputNode.data.srcFilename ?? '')
+            : ''
+
+        await saveOutputNodes(
+          afterWf.nodes,
+          afterWf.edges,
+          afterWf.results,
+          downstreamIds,
+          stem || undefined,
+        )
+        const items = buildRunItems(
+          afterWf.nodes,
+          afterWf.edges,
+          afterWf.results,
+        ).map((item) => ({
+          ...item,
+          inputFilename: stem,
+          inputNodeId: inputNode.id,
+        }))
+        for (const item of items) {
+          if (item.outputDataUrl?.startsWith('blob:'))
+            capturedUrls.add(item.outputDataUrl)
+          for (const step of item.chain) {
+            if (step.outputDataUrl?.startsWith('blob:'))
+              capturedUrls.add(step.outputDataUrl)
+          }
+        }
+        allRegularItems.push(...items)
       }
 
       set((s) => ({
@@ -193,18 +239,7 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         // Persist results to OPFS for restore on refresh
         persistResults(workflowId, finalWf.results)
 
-        const regularItems = buildRunItems(
-          finalWf.nodes,
-          finalWf.edges,
-          finalWf.results,
-        ).map((item) => ({
-          ...item,
-          inputFilename:
-            (item.chain[0]?.nodeData as { srcFilename?: string }).srcFilename ??
-            '',
-          inputNodeId: item.chain[0]?.nodeId ?? '',
-        }))
-        const items = [...allBatchItems, ...regularItems]
+        const items = [...allBatchItems, ...allRegularItems]
         if (items.length > 0) {
           const completedAt = Date.now()
           const run: WorkflowRun = {
@@ -255,24 +290,20 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         )
         input.buffer.destroy()
       } else {
-        const incomingEdge = edges.find((e) => e.target === nodeId)
-        const upstreamId = incomingEdge?.source
-        if (!upstreamId) return
-        const upstreamResult = wf.results[upstreamId]
-        if (!upstreamResult?.outputDataUrl) return
-
-        const input = await dataUrlToGPUBuffer(
-          device,
-          upstreamResult.outputDataUrl,
-        )
-        await runSingleNode(
-          nodeId,
-          input,
-          nodes,
-          makeCallbacks(set, workflowId),
-          makeRunOptions(get, workflowId),
-        )
-        input.buffer.destroy()
+        const incomingEdgeList = edges.filter((e) => e.target === nodeId)
+        if (incomingEdgeList.length === 0) return
+        const callbacks = makeCallbacks(set, workflowId)
+        const runOpts = makeRunOptions(get, workflowId)
+        const inputs: Array<GPUImageBuffer> = []
+        for (const edge of incomingEdgeList) {
+          const upstreamResult = wf.results[edge.source]
+          if (!upstreamResult?.outputDataUrl) continue
+          inputs.push(await dataUrlToGPUBuffer(device, upstreamResult.outputDataUrl))
+        }
+        if (inputs.length > 0) {
+          await runSingleNodeWithInputs(nodeId, inputs, nodes, callbacks, runOpts)
+          for (const input of inputs) input.buffer.destroy()
+        }
       }
 
       const afterWf = getWorkflow(get, workflowId)
@@ -339,18 +370,15 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         return
       }
 
-      const incomingEdge = edges.find((e) => e.target === nodeId)
-      const upstreamId = incomingEdge?.source
-      if (!upstreamId) return
+      const incomingEdgeList = edges.filter((e) => e.target === nodeId)
+      if (incomingEdgeList.length === 0) return
 
-      const upstreamResult = wf.results[upstreamId]
-      if (!upstreamResult?.outputDataUrl) return
+      const validUpstreams = incomingEdgeList
+        .map((e) => ({ source: e.source, result: wf.results[e.source] }))
+        .filter((u) => !!u.result?.outputDataUrl)
+      if (validUpstreams.length === 0) return
 
       const device = await getGPUDevice()
-      const initialInput = await dataUrlToGPUBuffer(
-        device,
-        upstreamResult.outputDataUrl,
-      )
 
       const affectedIds = getDownstreamIds(nodeId, edges)
       set((s) => ({
@@ -364,14 +392,16 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         }),
       }))
 
-      await runFromNode(
-        nodeId,
-        initialInput,
-        nodes,
-        edges,
-        callbacks,
-        makeRunOptions(get, workflowId),
-      )
+      const runOpts = makeRunOptions(get, workflowId)
+      const upstreamBuffers = new Map<string, GPUImageBuffer>()
+      for (const upstream of validUpstreams) {
+        upstreamBuffers.set(
+          upstream.source,
+          await dataUrlToGPUBuffer(device, upstream.result!.outputDataUrl!),
+        )
+      }
+      await runFromNodeWithInputs(nodeId, upstreamBuffers, nodes, edges, callbacks, runOpts)
+      for (const buf of upstreamBuffers.values()) buf.buffer.destroy()
 
       const afterWf = getWorkflow(get, workflowId)
       if (afterWf)
