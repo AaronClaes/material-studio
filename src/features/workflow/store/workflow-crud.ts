@@ -35,7 +35,7 @@ export function exportWorkflow(wf: WorkflowDef): void {
   const payload = {
     name: wf.name,
     nodes: wf.nodes.map((n) =>
-      n.data.kind === 'inputNode'
+      n.data.kind === 'inputNode' || n.data.kind === 'googleDriveInputNode'
         ? { ...n, data: { ...n.data, src: '', processedCount: 0 } }
         : n,
     ),
@@ -71,7 +71,7 @@ export function buildCrudActions(set: StoreSet, get: StoreGet) {
         id: `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: `${wf.name} copy`,
         nodes: wf.nodes.map((n) =>
-          n.data.kind === 'inputNode'
+          n.data.kind === 'inputNode' || n.data.kind === 'googleDriveInputNode'
             ? { ...n, data: { ...n.data, src: '', processedCount: 0 } }
             : n,
         ),

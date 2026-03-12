@@ -313,7 +313,7 @@ async function processNode(
   input: GPUImageBuffer | undefined,
   runOptions?: RunOptions,
 ): Promise<NodeProcessResult> {
-  if (data.kind === 'inputNode') {
+  if (data.kind === 'inputNode' || data.kind === 'googleDriveInputNode') {
     if (data.src) {
       const gpuBuffer = await processInputNode(device, data.src)
       const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
@@ -497,7 +497,7 @@ async function executeOrder(
     }
 
     // Skip disabled nodes — thread upstream data through unchanged (first instance)
-    if (node.data.kind !== 'inputNode' && node.data.disabled) {
+    if (node.data.kind !== 'inputNode' && node.data.kind !== 'googleDriveInputNode' && node.data.disabled) {
       if (inputs.length > 0) {
         outputs.set(id, inputs)
         const dataUrl = await gpuBufferToObjectUrl(device, inputs[0]!)

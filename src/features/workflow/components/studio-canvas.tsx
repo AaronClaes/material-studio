@@ -15,6 +15,7 @@ import {
   ColorNode,
   CropNode,
   DisplacementNode,
+  GoogleDriveInputNode,
   InputNode,
   NormalmapNode,
   OutputNode,
@@ -45,6 +46,7 @@ import { useRunHistoryStore } from '@/features/workflow/store/run-history-store'
 
 const nodeTypes: NodeTypes = {
   inputNode: InputNode,
+  googleDriveInputNode: GoogleDriveInputNode,
   outputNode: OutputNode,
   crop: CropNode,
   resolution: ResolutionNode,
@@ -98,8 +100,10 @@ export function StudioCanvas() {
 
   const canRun = nodes.some(
     (n) =>
-      n.data.kind === 'inputNode' &&
-      (n.data.batch ? !!directoryHandles[n.id] : !!n.data.src),
+      (n.data.kind === 'inputNode' &&
+        (n.data.batch ? !!directoryHandles[n.id] : !!n.data.src)) ||
+      (n.data.kind === 'googleDriveInputNode' &&
+        (n.data.batch ? !!n.data.folderId : !!n.data.src)),
   )
 
   const [isDragging, setIsDragging] = useState(false)
