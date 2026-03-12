@@ -1,5 +1,6 @@
 import {
   IconArrowsMoveVertical,
+  IconBrandGoogleDrive,
   IconBrightnessDown,
   IconCopy,
   IconCrop,
@@ -33,6 +34,11 @@ const NODES: Array<{
   tags: Array<string>
 }> = [
   { kind: 'inputNode', icon: IconPhoto, tags: ['source', 'image', 'import'] },
+  {
+    kind: 'googleDriveInputNode',
+    icon: IconBrandGoogleDrive,
+    tags: ['google', 'drive', 'cloud', 'import'],
+  },
   { kind: 'crop', icon: IconCrop, tags: ['trim', 'bounds', 'cut'] },
   { kind: 'resolution', icon: IconMaximize, tags: ['resize', 'scale'] },
   { kind: 'color', icon: IconPalette, tags: ['hue', 'contrast', 'saturation'] },
@@ -61,7 +67,7 @@ const NODES: Array<{
 ]
 
 const NODE_GROUPS: Array<{ label: string; kinds: Array<NodeKind> }> = [
-  { label: 'Flow', kinds: ['inputNode', 'workflowNode', 'outputNode'] },
+  { label: 'Flow', kinds: ['inputNode', 'googleDriveInputNode', 'workflowNode', 'outputNode'] },
   { label: 'Adjust', kinds: ['crop', 'resolution', 'color'] },
   { label: 'Generate Maps', kinds: ['normalmap', 'displacement', 'aomap'] },
   { label: 'Synthesise', kinds: ['quilting'] },

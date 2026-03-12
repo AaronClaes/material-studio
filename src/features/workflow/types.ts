@@ -8,6 +8,7 @@ export interface GPUImageBuffer {
 
 export type NodeKind =
   | 'inputNode'
+  | 'googleDriveInputNode'
   | 'crop'
   | 'resolution'
   | 'color'
@@ -24,6 +25,20 @@ export interface InputNodeData {
   src: string
   srcFilename?: string
   batch?: boolean
+  folderName?: string
+  fileCount?: number
+  processedCount?: number
+}
+
+export interface GoogleDriveInputNodeData {
+  kind: 'googleDriveInputNode'
+  label: string
+  src: string
+  srcFilename?: string
+  batch?: boolean
+  fileId?: string
+  fileName?: string
+  folderId?: string
   folderName?: string
   fileCount?: number
   processedCount?: number
@@ -128,6 +143,7 @@ export interface WorkflowNodeData {
 
 export type StudioNodeData = (
   | InputNodeData
+  | GoogleDriveInputNodeData
   | CropNodeData
   | ResolutionNodeData
   | ColorNodeData

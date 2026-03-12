@@ -33,7 +33,8 @@ export async function saveOutputNodes(
     let currentId: string | undefined = outputId
     while (currentId) {
       const n = nodeMap.get(currentId)
-      if (n?.data.kind === 'inputNode') return n.data.srcFilename ?? ''
+      if (n?.data.kind === 'inputNode' || n?.data.kind === 'googleDriveInputNode')
+        return n.data.srcFilename ?? ''
       currentId = incomingEdge.get(currentId)
     }
     return ''

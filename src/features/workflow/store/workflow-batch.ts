@@ -12,6 +12,11 @@ import type { RunResultItem } from '../lib/run-store'
 import { IMAGE_EXTENSIONS } from '@/shared/lib/image-extensions'
 import { fileToDataUrl } from '@/shared/lib/file-to-data-url'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
+import {
+  useGoogleAuthStore,
+  listFolderImages,
+  downloadFileAsDataUrl,
+} from '@/features/google-drive'
 
 export async function runBatchCollect(
   set: StoreSet,
@@ -88,6 +93,117 @@ export async function runBatchCollect(
       )
     } catch (err) {
       console.error(`Batch: skipping ${file.name}:`, err)
+    }
+
+    const afterWf = getWorkflow(get, workflowId)!
+    await saveOutputNodes(
+      afterWf.nodes,
+      afterWf.edges,
+      afterWf.results,
+      downstreamIds,
+      stem,
+    )
+
+    const newItems = buildRunItems(
+      afterWf.nodes,
+      afterWf.edges,
+      afterWf.results,
+    ).map((item) => ({ ...item, inputFilename: stem, inputNodeId: nodeId }))
+    for (const item of newItems) {
+      if (item.outputDataUrl?.startsWith('blob:'))
+        capturedUrls.add(item.outputDataUrl)
+      for (const step of item.chain) {
+        if (step.outputDataUrl?.startsWith('blob:'))
+          capturedUrls.add(step.outputDataUrl)
+      }
+    }
+    allItems.push(...newItems)
+
+    get().patchNodeData(workflowId, nodeId, { processedCount: i + 1 })
+  }
+
+  set((s) => ({
+    workflows: updateWorkflow(s.workflows, workflowId, () => ({
+      isRunning: false,
+    })),
+  }))
+
+  return allItems
+}
+
+export async function runGDriveBatchCollect(
+  set: StoreSet,
+  get: StoreGet,
+  workflowId: string,
+  nodeId: string,
+): Promise<Array<RunResultItem>> {
+  const wf = getWorkflow(get, workflowId)
+  if (!wf || wf.isRunning) return []
+
+  const node = wf.nodes.find((n) => n.id === nodeId)
+  if (!node || node.data.kind !== 'googleDriveInputNode' || !node.data.folderId)
+    return []
+
+  const accessToken = useGoogleAuthStore.getState().accessToken
+  if (!accessToken) return []
+
+  const files = await listFolderImages(accessToken, node.data.folderId)
+  if (files.length === 0) return []
+
+  get().patchNodeData(workflowId, nodeId, {
+    processedCount: 0,
+    fileCount: files.length,
+  })
+  set((s) => ({
+    workflows: updateWorkflow(s.workflows, workflowId, () => ({
+      isRunning: true,
+    })),
+  }))
+
+  const allItems: Array<RunResultItem> = []
+  const capturedUrls = new Set<string>()
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    if (!file) continue
+    const stem = file.name.replace(/\.[^.]+$/, '')
+
+    // Re-check token validity before each download
+    const token = useGoogleAuthStore.getState().accessToken
+    if (!token) break
+
+    const fileDataUrl = await downloadFileAsDataUrl(token, file.id)
+
+    get().patchNodeData(workflowId, nodeId, {
+      src: fileDataUrl,
+      srcFilename: stem,
+    })
+
+    const { nodes, edges } = getWorkflow(get, workflowId)!
+    const downstreamIds = getDownstreamIds(nodeId, edges)
+    set((s) => ({
+      workflows: updateWorkflow(s.workflows, workflowId, (w) => {
+        const results = { ...w.results }
+        for (const id of downstreamIds) {
+          const url = results[id]?.outputDataUrl
+          if (url && !capturedUrls.has(url)) revokeOldUrl(url)
+          results[id] = { status: 'idle', outputDataUrl: null, error: null }
+        }
+        return { results }
+      }),
+    }))
+
+    try {
+      await runFromNode(
+        nodeId,
+        undefined,
+        nodes,
+        edges,
+        makeCallbacks(set, workflowId),
+        makeRunOptions(get, workflowId),
+      )
+    } catch (err) {
+      console.error(`GDrive batch: skipping ${file.name}:`, err)
     }
 
     const afterWf = getWorkflow(get, workflowId)!

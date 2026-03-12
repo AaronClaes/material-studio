@@ -47,6 +47,7 @@ export interface WorkflowStore {
   runNode: (workflowId: string, nodeId: string) => Promise<void>
   runNodesFrom: (workflowId: string, nodeId: string) => Promise<void>
   runBatch: (workflowId: string, nodeId: string) => Promise<void>
+  runGDriveBatch: (workflowId: string, nodeId: string) => Promise<void>
   resetWorkflow: (workflowId: string) => void
 }
 

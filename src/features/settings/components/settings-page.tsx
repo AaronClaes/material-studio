@@ -5,6 +5,7 @@ import { ModelManager } from './model-manager'
 import { EnvironmentManager } from './environment-manager'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
+import { GoogleAuthButton } from '@/features/google-drive'
 
 export function SettingsPage() {
   return (
@@ -23,6 +24,16 @@ export function SettingsPage() {
         <Separator className="mb-6" />
 
         <NotificationSettings />
+
+        <Separator className="my-6" />
+
+        <section>
+          <h2 className="text-sm font-medium mb-4">Connected Accounts</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Connect external services to use them as input or output sources.
+          </p>
+          <GoogleAuthButton />
+        </section>
 
         <Separator className="my-6" />
 

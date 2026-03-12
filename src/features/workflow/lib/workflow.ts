@@ -4,6 +4,7 @@ import type {
   ColorNodeData,
   CropNodeData,
   DisplacementNodeData,
+  GoogleDriveInputNodeData,
   InputNodeData,
   NodeKind,
   NormalmapNodeData,
@@ -23,6 +24,11 @@ export const NODE_META: Record<
     label: 'Input',
     icon: 'photo',
     description: 'Load an image file',
+  },
+  googleDriveInputNode: {
+    label: 'Google Drive',
+    icon: 'brand-google-drive',
+    description: 'Load images from Google Drive',
   },
   crop: {
     label: 'Crop',
@@ -83,6 +89,12 @@ function defaultData(kind: NodeKind): StudioNodeData {
         label: 'Input',
         src: '',
       } satisfies InputNodeData
+    case 'googleDriveInputNode':
+      return {
+        kind: 'googleDriveInputNode',
+        label: 'Google Drive',
+        src: '',
+      } satisfies GoogleDriveInputNodeData
     case 'crop':
       return {
         kind: 'crop',

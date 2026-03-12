@@ -14,7 +14,7 @@ import {
   revokeOldUrl,
 } from './workflow-callbacks'
 import { buildRunItems, saveOutputNodes } from './workflow-output-saver'
-import { runBatchCollect } from './workflow-batch'
+import { runBatchCollect, runGDriveBatchCollect } from './workflow-batch'
 import { useRunHistoryStore } from './run-history-store'
 import type { RunResultItem, WorkflowRun } from '../lib/run-store'
 import type { StoreGet, StoreSet } from './workflow-types'
@@ -113,14 +113,31 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         .map((n) => n.id)
         .filter((id) => useDirectoryStore.getState().handles[id])
 
+      const gDriveBatchNodeIds = nodes
+        .filter(
+          (n) =>
+            n.data.kind === 'googleDriveInputNode' &&
+            n.data.batch &&
+            n.data.folderId,
+        )
+        .map((n) => n.id)
+
       const allBatchItems: Array<RunResultItem> = []
       for (const nodeId of batchNodeIds) {
         const items = await runBatchCollect(set, get, workflowId, nodeId)
         allBatchItems.push(...items)
       }
+      for (const nodeId of gDriveBatchNodeIds) {
+        const items = await runGDriveBatchCollect(set, get, workflowId, nodeId)
+        allBatchItems.push(...items)
+      }
 
       const regularInputs = nodes.filter(
-        (n) => n.data.kind === 'inputNode' && !n.data.batch && n.data.src,
+        (n) =>
+          (n.data.kind === 'inputNode' && !n.data.batch && n.data.src) ||
+          (n.data.kind === 'googleDriveInputNode' &&
+            !n.data.batch &&
+            n.data.src),
       )
       if (regularInputs.length === 0) {
         if (allBatchItems.length > 0) {
@@ -197,7 +214,8 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
         const afterWf = getWorkflow(get, workflowId)!
         const stem =
-          inputNode.data.kind === 'inputNode'
+          inputNode.data.kind === 'inputNode' ||
+          inputNode.data.kind === 'googleDriveInputNode'
             ? (inputNode.data.srcFilename ?? '')
             : ''
 
@@ -265,7 +283,12 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
       const { nodes, edges } = wf
       const node = nodes.find((n) => n.id === nodeId)
       if (!node) return
-      if (node.data.kind !== 'inputNode' && node.data.disabled) return
+      if (
+        node.data.kind !== 'inputNode' &&
+        node.data.kind !== 'googleDriveInputNode' &&
+        node.data.disabled
+      )
+        return
 
       const device = await getGPUDevice()
 
@@ -278,7 +301,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
         })),
       }))
 
-      if (node.data.kind === 'inputNode') {
+      if (
+        node.data.kind === 'inputNode' ||
+        node.data.kind === 'googleDriveInputNode'
+      ) {
         if (!node.data.src) return
         const input = await processInputNode(device, node.data.src)
         await runSingleNode(
@@ -326,7 +352,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
       const callbacks = makeCallbacks(set, workflowId)
 
-      if (node.data.kind === 'inputNode') {
+      if (
+        node.data.kind === 'inputNode' ||
+        node.data.kind === 'googleDriveInputNode'
+      ) {
         if (!node.data.src) return
         const downstreamIds = getDownstreamIds(nodeId, edges)
         set((s) => ({
@@ -421,6 +450,10 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
     runBatch: async (workflowId: string, nodeId: string) => {
       await runBatchCollect(set, get, workflowId, nodeId)
+    },
+
+    runGDriveBatch: async (workflowId: string, nodeId: string) => {
+      await runGDriveBatchCollect(set, get, workflowId, nodeId)
     },
 
     resetWorkflow: (workflowId: string) => {
