@@ -6,6 +6,7 @@ interface GoogleAuthState {
   accessToken: string | null
   expiresAt: number | null
   userEmail: string | null
+  userName: string | null
   isSignedIn: boolean
   signIn: () => Promise<void>
   signOut: () => void
@@ -15,6 +16,7 @@ export const useGoogleAuthStore = create<GoogleAuthState>((set, get) => ({
   accessToken: null,
   expiresAt: null,
   userEmail: null,
+  userName: null,
   isSignedIn: false,
 
   signIn: async () => {
@@ -34,6 +36,7 @@ export const useGoogleAuthStore = create<GoogleAuthState>((set, get) => ({
 
           // Fetch user email from tokeninfo
           let userEmail: string | null = null
+          let userName: string | null = null
           try {
             const res = await fetch(
               `https://www.googleapis.com/oauth2/v3/userinfo`,
@@ -42,6 +45,7 @@ export const useGoogleAuthStore = create<GoogleAuthState>((set, get) => ({
             if (res.ok) {
               const info = await res.json()
               userEmail = info.email ?? null
+              userName = info.name ?? null
             }
           } catch {}
 
@@ -49,6 +53,7 @@ export const useGoogleAuthStore = create<GoogleAuthState>((set, get) => ({
             accessToken: response.access_token,
             expiresAt,
             userEmail,
+            userName,
             isSignedIn: true,
           })
           resolve()
@@ -71,6 +76,7 @@ export const useGoogleAuthStore = create<GoogleAuthState>((set, get) => ({
       accessToken: null,
       expiresAt: null,
       userEmail: null,
+      userName: null,
       isSignedIn: false,
     })
   },
