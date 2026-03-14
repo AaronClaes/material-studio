@@ -445,7 +445,7 @@ async function processNode(
     return { kind: 'image', gpuBuffer: output, dataUrl }
   }
 
-  // outputNode
+  // outputNode / googleDriveOutputNode — both have a `format` property
   const result = await processOutputNode(device, input, { format: data.format })
   return {
     kind: 'output',
@@ -497,7 +497,11 @@ async function executeOrder(
     }
 
     // Skip disabled nodes — thread upstream data through unchanged (first instance)
-    if (node.data.kind !== 'inputNode' && node.data.kind !== 'googleDriveInputNode' && node.data.disabled) {
+    if (
+      node.data.kind !== 'inputNode' &&
+      node.data.kind !== 'googleDriveInputNode' &&
+      node.data.disabled
+    ) {
       if (inputs.length > 0) {
         outputs.set(id, inputs)
         const dataUrl = await gpuBufferToObjectUrl(device, inputs[0]!)
@@ -620,7 +624,15 @@ export async function runFromNodeWithInputs(
     outputs.set(upstreamId, [buffer])
   }
 
-  await executeOrder(device, order, nodeMap, incomingEdges, outputs, callbacks, runOptions)
+  await executeOrder(
+    device,
+    order,
+    nodeMap,
+    incomingEdges,
+    outputs,
+    callbacks,
+    runOptions,
+  )
   destroyAllOutputs(outputs)
 }
 
@@ -684,6 +696,14 @@ export async function runGraph(
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
   const incomingEdges = buildIncomingEdgesMap(edges)
   const outputs = new Map<string, Array<GPUImageBuffer>>()
-  await executeOrder(device, order, nodeMap, incomingEdges, outputs, callbacks, runOptions)
+  await executeOrder(
+    device,
+    order,
+    nodeMap,
+    incomingEdges,
+    outputs,
+    callbacks,
+    runOptions,
+  )
   destroyAllOutputs(outputs)
 }

@@ -5,6 +5,7 @@ import type {
 } from '@/features/workflow/types'
 import type { RunResultItem } from '../lib/run-store'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
+import { uploadFileToDrive, useGoogleAuthStore } from '@/features/google-drive'
 
 function buildIncomingEdgeMap(edges: Array<StudioEdge>): Map<string, string> {
   const map = new Map<string, string>()
@@ -42,36 +43,71 @@ export async function saveOutputNodes(
 
   for (const node of nodes) {
     if (!filter.has(node.id)) continue
-    if (node.data.kind !== 'outputNode' || node.data.disabled) continue
+    if (node.data.disabled) continue
+
     const result = results[node.id]
     if (result?.status !== 'done') continue
-    const dirHandle = useDirectoryStore.getState().handles[node.id]
-    if (!dirHandle) continue
+
     const stem =
       stemOverride !== undefined ? stemOverride : findUpstreamInputStem(node.id)
-    const outputStem = (node.data.filename || 'output').replace('{name}', stem)
 
-    const dataUrls = result.allOutputDataUrls?.length
-      ? result.allOutputDataUrls
-      : result.outputDataUrl
-        ? [result.outputDataUrl]
-        : []
+    if (node.data.kind === 'outputNode') {
+      const dirHandle = useDirectoryStore.getState().handles[node.id]
+      if (!dirHandle) continue
 
-    for (let i = 0; i < dataUrls.length; i++) {
-      const dataUrl = dataUrls[i]!
-      const filename =
-        dataUrls.length === 1
-          ? `${outputStem}.${node.data.format}`
-          : `${outputStem}-${i + 1}.${node.data.format}`
-      try {
-        const response = await fetch(dataUrl)
-        const blob = await response.blob()
-        const fh = await dirHandle.getFileHandle(filename, { create: true })
-        const writable = await fh.createWritable()
-        await writable.write(blob)
-        await writable.close()
-      } catch (err) {
-        console.error(`Failed to save ${filename}:`, err)
+      const outputStem = (node.data.filename || 'output').replace('{name}', stem)
+      const dataUrls = result.allOutputDataUrls?.length
+        ? result.allOutputDataUrls
+        : result.outputDataUrl
+          ? [result.outputDataUrl]
+          : []
+
+      for (let i = 0; i < dataUrls.length; i++) {
+        const dataUrl = dataUrls[i]!
+        const filename =
+          dataUrls.length === 1
+            ? `${outputStem}.${node.data.format}`
+            : `${outputStem}-${i + 1}.${node.data.format}`
+        try {
+          const response = await fetch(dataUrl)
+          const blob = await response.blob()
+          const fh = await dirHandle.getFileHandle(filename, { create: true })
+          const writable = await fh.createWritable()
+          await writable.write(blob)
+          await writable.close()
+        } catch (err) {
+          console.error(`Failed to save ${filename}:`, err)
+        }
+      }
+    } else if (node.data.kind === 'googleDriveOutputNode') {
+      const { folderId } = node.data
+      if (!folderId) continue
+      const accessToken = useGoogleAuthStore.getState().accessToken
+      if (!accessToken) continue
+
+      const outputStem = (node.data.filename || 'output').replace('{name}', stem)
+      const dataUrls = result.allOutputDataUrls?.length
+        ? result.allOutputDataUrls
+        : result.outputDataUrl
+          ? [result.outputDataUrl]
+          : []
+
+      const mimeMap = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }
+      const mimeType = mimeMap[node.data.format]
+
+      for (let i = 0; i < dataUrls.length; i++) {
+        const dataUrl = dataUrls[i]!
+        const filename =
+          dataUrls.length === 1
+            ? `${outputStem}.${node.data.format}`
+            : `${outputStem}-${i + 1}.${node.data.format}`
+        try {
+          const response = await fetch(dataUrl)
+          const blob = await response.blob()
+          await uploadFileToDrive(accessToken, folderId, filename, new Blob([blob], { type: mimeType }))
+        } catch (err) {
+          console.error(`Failed to upload ${filename} to Google Drive:`, err)
+        }
       }
     }
   }

@@ -50,11 +50,11 @@ export function GoogleDriveInputNode({
   const isBatch = !!data.batch
   const result = results[id]
 
-  // Restore single file input from OPFS on mount
+  // Restore preview from OPFS on mount (single file: always; batch: when folderId set)
   const { data: savedUrl } = useQuery({
     queryKey: ['workflow-input', activeWorkflowId, id],
     queryFn: () => loadWorkflowInput(activeWorkflowId, id),
-    enabled: !!activeWorkflowId && !isBatch && !data.src,
+    enabled: !!activeWorkflowId && !data.src && (!isBatch || !!data.folderId),
   })
   useEffect(() => {
     if (savedUrl) patchNodeData(activeWorkflowId, id, { src: savedUrl })
@@ -72,6 +72,7 @@ export function GoogleDriveInputNode({
       })
       deleteWorkflowInput(activeWorkflowId, id)
     } else {
+      deleteWorkflowInput(activeWorkflowId, id)
       patchNodeData(activeWorkflowId, id, {
         batch: false,
         src: '',
@@ -161,6 +162,8 @@ export function GoogleDriveInputNode({
       if (firstFile) {
         previewSrc = await downloadFileAsDataUrl(accessToken, firstFile.id)
         srcFilename = firstFile.name.replace(/\.[^.]+$/, '')
+        const previewBlob = await fetch(previewSrc).then((r) => r.blob())
+        await saveWorkflowInput(activeWorkflowId, id, previewBlob)
       }
       patchNodeData(activeWorkflowId, id, {
         fileCount: files.length,

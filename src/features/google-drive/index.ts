@@ -7,5 +7,6 @@ export {
   downloadFileAsBlob,
   downloadFileAsDataUrl,
   getFileMetadata,
+  uploadFileToDrive,
 } from './lib/drive-api'
 export type { DriveFile } from './lib/drive-api'

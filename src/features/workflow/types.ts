@@ -18,6 +18,7 @@ export type NodeKind =
   | 'quilting'
   | 'workflowNode'
   | 'outputNode'
+  | 'googleDriveOutputNode'
 
 export interface InputNodeData {
   kind: 'inputNode'
@@ -141,6 +142,16 @@ export interface WorkflowNodeData {
   disabled?: boolean
 }
 
+export interface GoogleDriveOutputNodeData {
+  kind: 'googleDriveOutputNode'
+  label: string
+  format: 'png' | 'jpg' | 'webp'
+  filename: string
+  folderId?: string
+  folderName?: string
+  disabled?: boolean
+}
+
 export type StudioNodeData = (
   | InputNodeData
   | GoogleDriveInputNodeData
@@ -153,6 +164,7 @@ export type StudioNodeData = (
   | QuiltingNodeData
   | WorkflowNodeData
   | OutputNodeData
+  | GoogleDriveOutputNodeData
 ) &
   Record<string, unknown>
 
