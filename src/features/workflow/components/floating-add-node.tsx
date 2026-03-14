@@ -60,6 +60,11 @@ const NODES: Array<{
   { kind: 'workflowNode', icon: IconCopy, tags: ['nested', 'subgraph'] },
   { kind: 'outputNode', icon: IconDownload, tags: ['export', 'save'] },
   {
+    kind: 'googleDriveOutputNode',
+    icon: IconBrandGoogleDrive,
+    tags: ['google', 'drive', 'cloud', 'export', 'save'],
+  },
+  {
     kind: 'quilting',
     icon: IconTexture,
     tags: ['texture', 'synthesis', 'tile', 'quilting', 'sample'],
@@ -67,7 +72,7 @@ const NODES: Array<{
 ]
 
 const NODE_GROUPS: Array<{ label: string; kinds: Array<NodeKind> }> = [
-  { label: 'Flow', kinds: ['inputNode', 'googleDriveInputNode', 'workflowNode', 'outputNode'] },
+  { label: 'Flow', kinds: ['inputNode', 'googleDriveInputNode', 'workflowNode', 'outputNode', 'googleDriveOutputNode'] },
   { label: 'Adjust', kinds: ['crop', 'resolution', 'color'] },
   { label: 'Generate Maps', kinds: ['normalmap', 'displacement', 'aomap'] },
   { label: 'Synthesise', kinds: ['quilting'] },

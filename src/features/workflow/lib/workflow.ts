@@ -5,6 +5,7 @@ import type {
   CropNodeData,
   DisplacementNodeData,
   GoogleDriveInputNodeData,
+  GoogleDriveOutputNodeData,
   InputNodeData,
   NodeKind,
   NormalmapNodeData,
@@ -74,6 +75,11 @@ export const NODE_META: Record<
     label: 'Output',
     icon: 'download',
     description: 'Export & save to disk',
+  },
+  googleDriveOutputNode: {
+    label: 'Google Drive Output',
+    icon: 'brand-google-drive',
+    description: 'Export & save to Google Drive',
   },
 }
 
@@ -183,6 +189,13 @@ function defaultData(kind: NodeKind): StudioNodeData {
         format: 'png',
         filename: 'output',
       } satisfies OutputNodeData
+    case 'googleDriveOutputNode':
+      return {
+        kind: 'googleDriveOutputNode',
+        label: 'Google Drive Output',
+        format: 'png',
+        filename: 'output',
+      } satisfies GoogleDriveOutputNodeData
   }
 }
 

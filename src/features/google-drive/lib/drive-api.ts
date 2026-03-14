@@ -74,3 +74,25 @@ export async function downloadFileAsDataUrl(
     reader.readAsDataURL(blob)
   })
 }
+
+export async function uploadFileToDrive(
+  accessToken: string,
+  folderId: string,
+  filename: string,
+  blob: Blob,
+): Promise<void> {
+  const metadata = JSON.stringify({ name: filename, parents: [folderId] })
+  const body = new FormData()
+  body.append('metadata', new Blob([metadata], { type: 'application/json' }))
+  body.append('file', blob)
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body,
+    },
+  )
+  if (!res.ok) throw new Error(`Drive upload error: ${res.status}`)
+}
