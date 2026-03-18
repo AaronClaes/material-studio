@@ -7,6 +7,7 @@ import type {
   GoogleDriveInputNodeData,
   GoogleDriveOutputNodeData,
   InputNodeData,
+  NanoBananaNodeData,
   NodeKind,
   NormalmapNodeData,
   OutputNodeData,
@@ -65,6 +66,11 @@ export const NODE_META: Record<
     label: 'Image Quilting',
     icon: 'texture',
     description: 'Synthesise a tileable texture from a sample image',
+  },
+  nanoBanana: {
+    label: 'Nano Banana',
+    icon: 'sparkles',
+    description: 'AI image editing with Gemini',
   },
   workflowNode: {
     label: 'Workflow',
@@ -174,6 +180,15 @@ function defaultData(kind: NodeKind): StudioNodeData {
         errorTolerance: 1.5,
         seed: 42,
       } satisfies QuiltingNodeData
+    case 'nanoBanana':
+      return {
+        kind: 'nanoBanana',
+        label: 'Nano Banana',
+        prompt: '',
+        model: 'gemini-2.5-flash-image',
+        aspectRatio: '1:1',
+        imageSize: '1K',
+      } satisfies NanoBananaNodeData
     case 'workflowNode':
       return {
         kind: 'workflowNode',

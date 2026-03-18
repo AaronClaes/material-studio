@@ -10,6 +10,7 @@ import {
   IconPhoto,
   IconPlus,
   IconSearch,
+  IconSparkles,
   IconTexture,
   IconVectorTriangle,
 } from '@tabler/icons-react'
@@ -69,6 +70,11 @@ const NODES: Array<{
     icon: IconTexture,
     tags: ['texture', 'synthesis', 'tile', 'quilting', 'sample'],
   },
+  {
+    kind: 'nanoBanana',
+    icon: IconSparkles,
+    tags: ['ai', 'gemini', 'generate', 'nano', 'banana'],
+  },
 ]
 
 const NODE_GROUPS: Array<{ label: string; kinds: Array<NodeKind> }> = [
@@ -76,6 +82,7 @@ const NODE_GROUPS: Array<{ label: string; kinds: Array<NodeKind> }> = [
   { label: 'Adjust', kinds: ['crop', 'resolution', 'color'] },
   { label: 'Generate Maps', kinds: ['normalmap', 'displacement', 'aomap'] },
   { label: 'Synthesise', kinds: ['quilting'] },
+  { label: 'AI / Generate', kinds: ['nanoBanana'] },
 ]
 
 interface FloatingAddNodeProps {
