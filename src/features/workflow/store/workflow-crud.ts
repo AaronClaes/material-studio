@@ -4,7 +4,6 @@ import type { StoreGet, StoreSet, WorkflowDef } from './workflow-types'
 import {
   deleteAllWorkflowInputs,
   deleteAllWorkflowRunFiles,
-  deleteWorkflowResults,
 } from '@/shared/lib/image-opfs'
 import { useRunHistoryStore } from './run-history-store'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
@@ -113,7 +112,6 @@ export function buildCrudActions(set: StoreSet, get: StoreGet) {
       // Async cleanup (fire-and-forget)
       void Promise.all([
         deleteAllWorkflowInputs(id),
-        deleteWorkflowResults(id),
         deleteAllWorkflowRunFiles(id),
       ])
       useRunHistoryStore.getState().deleteWorkflowHistory(id)

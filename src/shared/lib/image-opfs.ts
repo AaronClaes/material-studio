@@ -2,7 +2,6 @@ import { FileCollection } from './opfs'
 import type { MapKey } from '@/features/material-viewer/lib/material-definitions'
 
 const workflowInputs = new FileCollection('workflow-inputs')
-const workflowResults = new FileCollection('workflow-results')
 const repeatTester = new FileCollection('repeat-tester')
 const materialViewer = new FileCollection('material-viewer')
 const runHistoryCollection = new FileCollection('workflow-run-history')
@@ -36,55 +35,6 @@ export async function deleteWorkflowInput(
   } catch {
     // ignore if not found
   }
-}
-
-// Workflow results
-export async function saveWorkflowResult(
-  workflowId: string,
-  nodeId: string,
-  blobUrl: string,
-): Promise<void> {
-  const blob = await fetch(blobUrl).then((r) => r.blob())
-  await workflowResults.writeFile(`${workflowId}-${nodeId}.png`, blob)
-}
-
-export async function loadWorkflowResult(
-  workflowId: string,
-  nodeId: string,
-): Promise<string | null> {
-  try {
-    return await workflowResults.getFileUrl(`${workflowId}-${nodeId}.png`)
-  } catch {
-    return null
-  }
-}
-
-export async function loadAllWorkflowResults(
-  workflowId: string,
-): Promise<Record<string, string>> {
-  const files = await workflowResults.listFiles()
-  const prefix = `${workflowId}-`
-  const matching = files.filter(
-    (f) => f.startsWith(prefix) && f.endsWith('.png'),
-  )
-  const entries = await Promise.all(
-    matching.map(async (f) => {
-      const nodeId = f.slice(prefix.length, -'.png'.length)
-      const url = await workflowResults.getFileUrl(f)
-      return [nodeId, url] as [string, string]
-    }),
-  )
-  return Object.fromEntries(entries)
-}
-
-export async function deleteWorkflowResults(workflowId: string): Promise<void> {
-  const files = await workflowResults.listFiles()
-  const prefix = `${workflowId}-`
-  await Promise.all(
-    files
-      .filter((f) => f.startsWith(prefix))
-      .map((f) => workflowResults.deleteFile(f).catch(() => {})),
-  )
 }
 
 export async function deleteAllWorkflowInputs(workflowId: string): Promise<void> {

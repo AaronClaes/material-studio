@@ -25,7 +25,6 @@ import {
   WorkflowNode,
 } from '../nodes'
 import { useDirectoryRestore } from '../hooks/use-directory-restore'
-import { useRestoreWorkflowResults } from '../hooks/use-restore-workflow-results'
 import { StudioToolbar } from './studio-toolbar'
 import { FloatingAddNode } from './floating-add-node'
 import { WorkflowPanel } from './workflow-panel'
@@ -87,8 +86,6 @@ export function StudioCanvas() {
   const [overviewOpen, setOverviewOpen] = useState(false)
 
   useDirectoryRestore()
-  useRestoreWorkflowResults(activeWorkflowId)
-
   useEffect(() => {
     if (hasUnseenRun) {
       setOverviewOpen(true)
