@@ -18,14 +18,10 @@ import { runBatchCollect, runGDriveBatchCollect } from './workflow-batch'
 import { useRunHistoryStore } from './run-history-store'
 import type { RunResultItem, WorkflowRun } from '../lib/run-store'
 import type { StoreGet, StoreSet } from './workflow-types'
-import type { ExecutionResults, GPUImageBuffer } from '@/features/workflow/types'
+import type { GPUImageBuffer } from '@/features/workflow/types'
 import type { RunItem, RunMeta } from '@/shared/lib/run-history-types'
 import { notify } from '@/shared/stores/settings-store'
-import {
-  deleteWorkflowResults,
-  saveRunFile,
-  saveWorkflowResult,
-} from '@/shared/lib/image-opfs'
+import { saveRunFile } from '@/shared/lib/image-opfs'
 import { useDirectoryStore } from '@/shared/stores/directory-store'
 import { getGPUDevice } from '@/shared/gpu'
 import { dataUrlToGPUBuffer, processInputNode } from '@/shared/gpu/processors'
@@ -75,31 +71,8 @@ async function saveToRunHistory(run: WorkflowRun): Promise<void> {
   useRunHistoryStore.getState().saveRun(meta)
 }
 
-async function persistResults(
-  workflowId: string,
-  results: ExecutionResults,
-): Promise<void> {
-  await Promise.all(
-    Object.entries(results).map(([nodeId, result]) => {
-      if (result?.outputDataUrl) {
-        return saveWorkflowResult(
-          workflowId,
-          nodeId,
-          result.outputDataUrl,
-        ).catch(() => {})
-      }
-    }),
-  )
-}
-
 export function buildExecutionActions(set: StoreSet, get: StoreGet) {
   return {
-    setResults: (workflowId: string, results: ExecutionResults) => {
-      set((s) => ({
-        workflows: updateWorkflow(s.workflows, workflowId, () => ({ results })),
-      }))
-    },
-
     run: async (workflowId: string) => {
       const wf = getWorkflow(get, workflowId)
       if (!wf || wf.isRunning) return
@@ -254,9 +227,6 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
 
       const finalWf = getWorkflow(get, workflowId)
       if (finalWf) {
-        // Persist results to OPFS for restore on refresh
-        persistResults(workflowId, finalWf.results)
-
         const items = [...allBatchItems, ...allRegularItems]
         if (items.length > 0) {
           const completedAt = Date.now()
@@ -471,7 +441,6 @@ export function buildExecutionActions(set: StoreSet, get: StoreGet) {
           })),
         }
       })
-      deleteWorkflowResults(workflowId)
     },
   }
 }
