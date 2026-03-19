@@ -18,6 +18,7 @@ import {
   GoogleDriveInputNode,
   GoogleDriveOutputNode,
   InputNode,
+  NanoBananaNode,
   NormalmapNode,
   OutputNode,
   QuiltingNode,
@@ -56,6 +57,7 @@ const nodeTypes: NodeTypes = {
   displacement: DisplacementNode,
   aomap: AomapNode,
   quilting: QuiltingNode,
+  nanoBanana: NanoBananaNode,
   workflowNode: WorkflowNode,
 }
 

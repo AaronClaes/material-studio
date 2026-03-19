@@ -17,6 +17,7 @@ export type NodeKind =
   | 'aomap'
   | 'quilting'
   | 'workflowNode'
+  | 'nanoBanana'
   | 'outputNode'
   | 'googleDriveOutputNode'
 
@@ -125,6 +126,19 @@ export interface AomapNodeData {
   disabled?: boolean
 }
 
+export interface NanoBananaNodeData {
+  kind: 'nanoBanana'
+  label: string
+  prompt: string
+  model:
+    | 'gemini-2.5-flash-image'
+    | 'gemini-3.1-flash-image-preview'
+    | 'gemini-3-pro-image-preview'
+  aspectRatio: string
+  imageSize: string
+  disabled?: boolean
+}
+
 export interface OutputNodeData {
   kind: 'outputNode'
   label: string
@@ -163,6 +177,7 @@ export type StudioNodeData = (
   | AomapNodeData
   | QuiltingNodeData
   | WorkflowNodeData
+  | NanoBananaNodeData
   | OutputNodeData
   | GoogleDriveOutputNodeData
 ) &

@@ -5,6 +5,7 @@ import type {
   StudioNodeData,
 } from '@/features/workflow/types'
 import {
+  dataUrlToGPUBuffer,
   processAomapNode,
   processColorNode,
   processCropNode,
@@ -16,6 +17,7 @@ import {
   processResolutionNode,
 } from '@/shared/gpu/processors'
 import { getGPUDevice, gpuBufferToObjectUrl } from '@/shared/gpu'
+import { processNanoBananaNode } from '@/features/workflow/lib/nano-banana-api'
 
 export function topoSort(
   nodes: Array<StudioNode>,
@@ -407,6 +409,28 @@ async function processNode(
     })
     const dataUrl = await gpuBufferToObjectUrl(device, gpuBuffer)
     return { kind: 'image', gpuBuffer, dataUrl }
+  }
+
+  if (data.kind === 'nanoBanana') {
+    // Round-trip through the Gemini API: GPU → data URL → API → data URL → GPU
+    const inputDataUrl = await gpuBufferToObjectUrl(device, input, 'image/png')
+    // Convert blob URL to base64 data URL for the API
+    const blob = await fetch(inputDataUrl).then((r) => r.blob())
+    URL.revokeObjectURL(inputDataUrl)
+    const base64DataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to read image'))
+      reader.readAsDataURL(blob)
+    })
+    const resultDataUrl = await processNanoBananaNode(base64DataUrl, {
+      prompt: data.prompt,
+      model: data.model,
+      aspectRatio: data.aspectRatio,
+      imageSize: data.imageSize,
+    })
+    const gpuBuffer = await dataUrlToGPUBuffer(device, resultDataUrl)
+    return { kind: 'image', gpuBuffer, dataUrl: resultDataUrl }
   }
 
   if (data.kind === 'workflowNode') {
