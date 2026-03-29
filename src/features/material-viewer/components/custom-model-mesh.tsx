@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import { Mesh } from 'three'
 import {
-  Color,
-  LinearSRGBColorSpace,
-  Mesh,
-  RepeatWrapping,
-  SRGBColorSpace,
-  Vector2,
-} from 'three'
-import { MATERIAL_CONSTRUCTORS } from './loaded-mesh'
-import type { Material, MeshStandardMaterial ,
-  Texture} from 'three'
+  applyMaterialSettings,
+  applyTextures,
+  createMaterial,
+} from '../lib/material-utils'
+import type { Material, Texture } from 'three'
 import type {
   MapDef,
   MapKey,
@@ -106,7 +102,10 @@ function CustomModelLoadedMesh({
   }, [scene])
 
   useEffect(() => {
-    const currentTextures = texRef.current
+    const currentTextures = texRef.current as Record<
+      string,
+      Texture | undefined
+    >
     const selectedSet = new Set(selectedMaterials)
     clonedScene.traverse((child) => {
       if (!(child instanceof Mesh)) return
@@ -117,39 +116,16 @@ function CustomModelLoadedMesh({
       const newMaterials = originals.map((mat, i) => {
         const matName = mat.name || `Material ${i}`
         if (selectedSet.has(matName)) {
-          const newMat = new MATERIAL_CONSTRUCTORS[materialType]()
-          for (const def of mapDefs) {
-            if (disabledMaps.has(def.key)) continue
-            const tex = (
-              currentTextures as Record<string, Texture | undefined>
-            )[def.key]
-            if (!tex) continue
-            tex.wrapS = RepeatWrapping
-            tex.wrapT = RepeatWrapping
-            tex.repeat.set(textureRepeat, textureRepeat)
-            tex.colorSpace =
-              def.colorSpace === 'srgb' ? SRGBColorSpace : LinearSRGBColorSpace
-            tex.needsUpdate = true
-            ;(newMat as any)[def.key] = tex
-          }
-          if (materialType === 'MeshStandardMaterial' && materialSettings) {
-            const stdMat = newMat as MeshStandardMaterial
-            stdMat.roughness = materialSettings.roughness
-            stdMat.metalness = materialSettings.metalness
-            stdMat.color = new Color(materialSettings.color)
-            stdMat.emissive = new Color(materialSettings.emissive)
-            stdMat.emissiveIntensity = materialSettings.emissiveIntensity
-            stdMat.aoMapIntensity = materialSettings.aoMapIntensity
-            stdMat.displacementScale = materialSettings.displacementScale
-            stdMat.displacementBias = materialSettings.displacementBias
-            stdMat.normalScale = new Vector2(
-              materialSettings.normalScale,
-              materialSettings.normalScale,
-            )
-            stdMat.wireframe = materialSettings.wireframe
-            stdMat.flatShading = materialSettings.flatShading
-          }
-          ;(newMat as any).name = matName
+          const newMat = createMaterial(materialType)
+          applyTextures(
+            newMat,
+            currentTextures,
+            mapDefs,
+            disabledMaps,
+            textureRepeat,
+          )
+          applyMaterialSettings(newMat, materialType, materialSettings)
+          newMat.name = matName
           newMat.needsUpdate = true
           return newMat
         }

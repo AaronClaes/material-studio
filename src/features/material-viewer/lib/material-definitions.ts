@@ -1,3 +1,12 @@
+import {
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshPhongMaterial,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+} from 'three'
+import type { Material } from 'three'
+
 export type MaterialType =
   | 'MeshBasicMaterial'
   | 'MeshLambertMaterial'
@@ -102,6 +111,14 @@ const M: Record<MapKey, MapDef> = {
   sheenColorMap: d('sheenColorMap', 'Sheen Color'),
   sheenRoughnessMap: d('sheenRoughnessMap', 'Sheen Rough.'),
   iridescenceMap: d('iridescenceMap', 'Iridescence'),
+}
+
+export const MATERIAL_CONSTRUCTORS: Record<MaterialType, new () => Material> = {
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshPhongMaterial,
+  MeshStandardMaterial,
+  MeshPhysicalMaterial,
 }
 
 export const MATERIAL_MAPS: Record<MaterialType, Array<MapDef>> = {
