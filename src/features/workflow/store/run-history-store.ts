@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { RunMeta } from '@/shared/lib/run-history-types'
+import type { RunMeta, RunItem } from '@/shared/lib/run-history-types'
 
 interface RunHistoryStore {
   history: Record<string, Array<RunMeta>>
@@ -11,6 +11,12 @@ interface RunHistoryStore {
   deleteWorkflowHistory: (workflowId: string) => void
   renameRun: (workflowId: string, runId: string, name: string) => void
   markSeen: (workflowId: string) => void
+  replaceRunItems: (
+    workflowId: string,
+    runId: string,
+    groupKeys: Set<string>,
+    newItems: Array<RunItem>,
+  ) => void
 }
 
 export const useRunHistoryStore = create<RunHistoryStore>()(
@@ -64,6 +70,26 @@ export const useRunHistoryStore = create<RunHistoryStore>()(
           unseenWorkflowIds: s.unseenWorkflowIds.filter(
             (id) => id !== workflowId,
           ),
+        })),
+
+      replaceRunItems: (workflowId, runId, groupKeys, newItems) =>
+        set((s) => ({
+          history: {
+            ...s.history,
+            [workflowId]: (s.history[workflowId] ?? []).map((r) => {
+              if (r.id !== runId) return r
+              // Remove old items matching the group keys, insert new ones in their place
+              const kept = r.items.filter((item) => {
+                const key = `${item.inputNodeId}|${item.inputFilename}`
+                return !groupKeys.has(key)
+              })
+              return {
+                ...r,
+                items: [...kept, ...newItems],
+                completedAt: Date.now(),
+              }
+            }),
+          },
         })),
     }),
     { name: 'material-studio-run-history' },

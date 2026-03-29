@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react'
 import { IconDownload, IconLoader2, IconTrash } from '@tabler/icons-react'
 import { ResultItemSidebar } from './result-item-sidebar'
 import { RunChainPanel } from './run-chain-panel'
+import { RetrySettingsPanel } from './retry-settings-panel'
+import { RetryActionBar } from './retry-action-bar'
 import { downloadAll, downloadCurrent } from './run-download'
 import { RunHistoryPanel } from './run-history-panel'
 import type { StudioNode } from '@/features/workflow/types'
@@ -62,8 +64,26 @@ export function WorkflowHistoryDialog({
     updatePreviewSettings,
     showSettings,
     setShowSettings,
+    // Retry
+    selectedGroupKeys,
+    toggleGroupSelection,
+    clearGroupSelection,
+    retryStatus,
+    retryChain,
+    retryDraftSettings,
+    retryOriginalSettings,
+    retryProgress,
+    enterRetryMode,
+    exitRetryMode,
+    updateRetryNodeData,
+    resetRetryNodeData,
+    executeRetry,
+    commitRetry,
+    discardRetry,
+    retryAgain,
   } = useRunOverview(workflowId)
 
+  const isInRetryMode = retryStatus !== 'idle'
   const items = selectedRun?.items ?? []
 
   const handleDownloadAll = useCallback(async () => {
@@ -106,7 +126,7 @@ export function WorkflowHistoryDialog({
               </>
             )}
             <div className="ml-auto flex items-center gap-1">
-              {selectedRunId && (
+              {selectedRunId && !isInRetryMode && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -122,7 +142,7 @@ export function WorkflowHistoryDialog({
                   )}
                 </Button>
               )}
-              {items.length > 0 && (
+              {items.length > 0 && !isInRetryMode && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -143,14 +163,16 @@ export function WorkflowHistoryDialog({
         </DialogHeader>
 
         <div className="flex flex-1 overflow-hidden min-h-0">
-          <RunHistoryPanel
-            metaList={metaList}
-            selectedRunId={selectedRunId}
-            onSelectRun={selectRun}
-            onDeleteRun={(id) => deleteRun.mutate(id)}
-            onRenameRun={(id, name) => renameRun(id, name)}
-            isLoading={false}
-          />
+          {!isInRetryMode && (
+            <RunHistoryPanel
+              metaList={metaList}
+              selectedRunId={selectedRunId}
+              onSelectRun={selectRun}
+              onDeleteRun={(id) => deleteRun.mutate(id)}
+              onRenameRun={(id, name) => renameRun(id, name)}
+              isLoading={false}
+            />
+          )}
 
           {isHydrating ? (
             <div className="flex flex-1 items-center justify-center">
@@ -173,6 +195,11 @@ export function WorkflowHistoryDialog({
                 onNavigateUp={navigateUp}
                 onNavigateDown={navigateDown}
                 nodes={nodes}
+                selectedGroupKeys={selectedGroupKeys}
+                onToggleGroup={toggleGroupSelection}
+                onClearSelection={clearGroupSelection}
+                onEnterRetryMode={enterRetryMode}
+                retryStatus={retryStatus}
               />
 
               <div className="flex-1 flex flex-col overflow-hidden">
@@ -203,29 +230,53 @@ export function WorkflowHistoryDialog({
                           updatePreviewSettings({ sliderPos })
                         }
                       />
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="absolute bottom-4 left-1/2 -translate-x-1/2 h-8 text-xs gap-1.5 opacity-0 group-hover/preview:opacity-100 transition-opacity shadow-md z-10"
-                        onClick={handleDownloadCurrent}
-                      >
-                        <IconDownload className="size-3.5" />
-                        Download
-                      </Button>
+                      {!isInRetryMode && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute bottom-4 left-1/2 -translate-x-1/2 h-8 text-xs gap-1.5 opacity-0 group-hover/preview:opacity-100 transition-opacity shadow-md z-10"
+                          onClick={handleDownloadCurrent}
+                        >
+                          <IconDownload className="size-3.5" />
+                          Download
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      No output
+                      {retryStatus === 'running'
+                        ? 'Running...'
+                        : 'No output'}
                     </span>
                   )}
+
+                  <RetryActionBar
+                    status={retryStatus}
+                    progress={retryProgress}
+                    onCancel={exitRetryMode}
+                    onRun={executeRetry}
+                    onDiscard={discardRetry}
+                    onRetryAgain={retryAgain}
+                    onKeep={commitRetry}
+                  />
                 </div>
               </div>
 
-              <RunChainPanel
-                selectedItem={selectedItem}
-                selectedStepId={displayStep?.nodeId ?? null}
-                onSelectStep={selectStep}
-              />
+              {isInRetryMode ? (
+                <RetrySettingsPanel
+                  chain={retryChain}
+                  draftSettings={retryDraftSettings}
+                  originalSettings={retryOriginalSettings}
+                  onUpdateNodeData={updateRetryNodeData}
+                  onResetNodeData={resetRetryNodeData}
+                />
+              ) : (
+                <RunChainPanel
+                  selectedItem={selectedItem}
+                  selectedStepId={displayStep?.nodeId ?? null}
+                  onSelectStep={selectStep}
+                />
+              )}
             </>
           )}
         </div>

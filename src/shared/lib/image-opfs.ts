@@ -158,3 +158,29 @@ export async function deleteRunFromHistory(
       .map((f) => runHistoryCollection.deleteFile(f).catch(() => {})),
   )
 }
+
+/**
+ * Deletes specific stored files from OPFS. Used when replacing run items
+ * during retry — removes the old result files before saving new ones.
+ */
+export async function deleteRunFiles(
+  storedFiles: Array<string>,
+): Promise<void> {
+  await Promise.all(
+    storedFiles.map((f) => runHistoryCollection.deleteFile(f).catch(() => {})),
+  )
+}
+
+/**
+ * Saves a retry result's data URL to OPFS and returns the stored filename.
+ * Reuses the same naming convention as `saveRunFile`.
+ */
+export async function saveRetryRunFile(
+  workflowId: string,
+  runId: string,
+  nodeId: string,
+  inputFilename: string,
+  dataUrl: string,
+): Promise<string> {
+  return saveRunFile(workflowId, runId, nodeId, inputFilename, dataUrl)
+}
