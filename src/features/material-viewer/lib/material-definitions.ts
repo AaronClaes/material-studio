@@ -48,6 +48,34 @@ export interface MapDef {
   colorSpace: 'srgb' | 'linear'
 }
 
+export interface StandardMaterialSettings {
+  roughness: number
+  metalness: number
+  color: string
+  emissive: string
+  emissiveIntensity: number
+  normalScale: number
+  aoMapIntensity: number
+  displacementScale: number
+  displacementBias: number
+  wireframe: boolean
+  flatShading: boolean
+}
+
+export const DEFAULT_STANDARD_MATERIAL_SETTINGS: StandardMaterialSettings = {
+  roughness: 1,
+  metalness: 0,
+  color: '#ffffff',
+  emissive: '#000000',
+  emissiveIntensity: 1,
+  normalScale: 1,
+  aoMapIntensity: 1,
+  displacementScale: 1,
+  displacementBias: 0,
+  wireframe: false,
+  flatShading: false,
+}
+
 const SRGB_KEYS = new Set<MapKey>(['map', 'emissiveMap', 'sheenColorMap'])
 
 function d(key: MapKey, label: string): MapDef {

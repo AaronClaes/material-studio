@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTexture } from '@react-three/drei'
 import {
+  Color,
   DoubleSide,
   LinearSRGBColorSpace,
   MeshBasicMaterial,
@@ -10,10 +11,16 @@ import {
   MeshStandardMaterial,
   RepeatWrapping,
   SRGBColorSpace,
+  Vector2,
 } from 'three'
 import type { Material, Texture } from 'three'
 import type { Preview3DShape } from '@/features/preview/types'
-import type { MapDef, MaterialType } from '../lib/material-definitions'
+import type {
+  MapDef,
+  MapKey,
+  MaterialType,
+  StandardMaterialSettings,
+} from '../lib/material-definitions'
 
 const MATERIAL_CONSTRUCTORS: Record<MaterialType, new () => Material> = {
   MeshBasicMaterial,
@@ -45,14 +52,20 @@ export function LoadedMesh({
   materialType,
   shape,
   textureRepeat,
+  disabledMaps,
+  materialSettings,
 }: {
   maps: Record<string, string>
   mapDefs: Array<MapDef>
   materialType: MaterialType
   shape: Preview3DShape
   textureRepeat: number
+  disabledMaps: Set<MapKey>
+  materialSettings?: StandardMaterialSettings
 }) {
   const textures = useTexture(maps)
+  const texRef = useRef(textures)
+  texRef.current = textures
   const s = toEffectiveShape(shape)
 
   const material = useMemo(() => {
@@ -60,8 +73,12 @@ export function LoadedMesh({
     if (s === 'plane') {
       ;(mat as any).side = DoubleSide
     }
+    const currentTextures = texRef.current
     for (const def of mapDefs) {
-      const tex = (textures as Record<string, Texture | undefined>)[def.key]
+      if (disabledMaps.has(def.key)) continue
+      const tex = (currentTextures as Record<string, Texture | undefined>)[
+        def.key
+      ]
       if (!tex) continue
       tex.wrapS = RepeatWrapping
       tex.wrapT = RepeatWrapping
@@ -71,9 +88,34 @@ export function LoadedMesh({
       tex.needsUpdate = true
       ;(mat as any)[def.key] = tex
     }
+    if (materialType === 'MeshStandardMaterial' && materialSettings) {
+      const stdMat = mat as MeshStandardMaterial
+      stdMat.roughness = materialSettings.roughness
+      stdMat.metalness = materialSettings.metalness
+      stdMat.color = new Color(materialSettings.color)
+      stdMat.emissive = new Color(materialSettings.emissive)
+      stdMat.emissiveIntensity = materialSettings.emissiveIntensity
+      stdMat.aoMapIntensity = materialSettings.aoMapIntensity
+      stdMat.displacementScale = materialSettings.displacementScale
+      stdMat.displacementBias = materialSettings.displacementBias
+      stdMat.normalScale = new Vector2(
+        materialSettings.normalScale,
+        materialSettings.normalScale,
+      )
+      stdMat.wireframe = materialSettings.wireframe
+      stdMat.flatShading = materialSettings.flatShading
+    }
     mat.needsUpdate = true
     return mat
-  }, [textures, materialType, mapDefs, textureRepeat, s])
+  }, [
+    maps,
+    materialType,
+    mapDefs,
+    textureRepeat,
+    s,
+    disabledMaps,
+    materialSettings,
+  ])
 
   useEffect(() => () => material.dispose(), [material])
 
