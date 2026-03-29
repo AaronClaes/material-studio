@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { IconX } from '@tabler/icons-react'
+import { IconEye, IconEyeOff, IconX } from '@tabler/icons-react'
 import type { MapDef, MapKey } from '../lib/material-definitions'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/shared/lib/utils'
@@ -7,8 +7,10 @@ import { cn } from '@/shared/lib/utils'
 interface MapSlotProps {
   def: MapDef
   dataUrl: string | undefined
+  isDisabled: boolean
   onUpload: (dataUrl: string) => void
   onRemove: () => void
+  onToggleDisabled: () => void
   isExternalDragTarget: boolean
   onDragTargetEnter: (key: MapKey) => void
   onDragTargetLeave: () => void
@@ -17,8 +19,10 @@ interface MapSlotProps {
 export function MapSlot({
   def,
   dataUrl,
+  isDisabled,
   onUpload,
   onRemove,
+  onToggleDisabled,
   isExternalDragTarget,
   onDragTargetEnter,
   onDragTargetLeave,
@@ -65,7 +69,12 @@ export function MapSlot({
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
+      <span
+        className={cn(
+          'w-24 shrink-0 truncate text-xs transition-colors',
+          isDisabled ? 'text-muted-foreground/40' : 'text-muted-foreground',
+        )}
+      >
         {def.label}
       </span>
       <div
@@ -73,6 +82,7 @@ export function MapSlot({
           'group relative flex h-10 flex-1 cursor-pointer items-center justify-center overflow-hidden border transition-colors',
           dataUrl ? 'border-border' : 'border-dashed border-border/60',
           isHighlighted && 'border-primary bg-primary/10',
+          isDisabled && dataUrl && 'border-border/40',
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -83,7 +93,10 @@ export function MapSlot({
           <img
             src={dataUrl}
             alt={def.label}
-            className="h-full w-full object-cover"
+            className={cn(
+              'h-full w-full object-cover transition-opacity',
+              isDisabled && 'opacity-30',
+            )}
           />
         ) : (
           <span className="text-xs text-muted-foreground/40">
@@ -91,17 +104,30 @@ export function MapSlot({
           </span>
         )}
         {dataUrl && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="absolute right-0.5 top-0.5 h-5 w-5 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation()
-              onRemove()
-            }}
-          >
-            <IconX size={10} />
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute left-0.5 top-0.5 h-5 w-5 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleDisabled()
+              }}
+            >
+              {isDisabled ? <IconEyeOff size={10} /> : <IconEye size={10} />}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute right-0.5 top-0.5 h-5 w-5 shrink-0 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemove()
+              }}
+            >
+              <IconX size={10} />
+            </Button>
+          </>
         )}
         <input
           ref={inputRef}
