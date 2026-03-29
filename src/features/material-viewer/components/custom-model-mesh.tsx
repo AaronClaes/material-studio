@@ -1,14 +1,18 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import { Mesh } from 'three'
 import {
-  LinearSRGBColorSpace,
-  Mesh,
-  RepeatWrapping,
-  SRGBColorSpace,
-} from 'three'
-import { MATERIAL_CONSTRUCTORS } from './loaded-mesh'
+  applyMaterialSettings,
+  applyTextures,
+  createMaterial,
+} from '../lib/material-utils'
 import type { Material, Texture } from 'three'
-import type { MapDef, MaterialType } from '../lib/material-definitions'
+import type {
+  MapDef,
+  MapKey,
+  MaterialType,
+  StandardMaterialSettings,
+} from '../lib/material-definitions'
 
 export function CustomModelMesh({
   modelUrl,
@@ -17,6 +21,8 @@ export function CustomModelMesh({
   materialType,
   textureRepeat,
   selectedMaterials,
+  disabledMaps,
+  materialSettings,
 }: {
   modelUrl: string
   maps: Record<string, string>
@@ -24,6 +30,8 @@ export function CustomModelMesh({
   materialType: MaterialType
   textureRepeat: number
   selectedMaterials: Array<string>
+  disabledMaps: Set<MapKey>
+  materialSettings?: StandardMaterialSettings
 }) {
   const hasAny = Object.keys(maps).length > 0
   if (hasAny) {
@@ -35,6 +43,8 @@ export function CustomModelMesh({
         materialType={materialType}
         textureRepeat={textureRepeat}
         selectedMaterials={selectedMaterials}
+        disabledMaps={disabledMaps}
+        materialSettings={materialSettings}
       />
     )
   }
@@ -58,6 +68,8 @@ function CustomModelLoadedMesh({
   materialType,
   textureRepeat,
   selectedMaterials,
+  disabledMaps,
+  materialSettings,
 }: {
   modelUrl: string
   maps: Record<string, string>
@@ -65,9 +77,13 @@ function CustomModelLoadedMesh({
   materialType: MaterialType
   textureRepeat: number
   selectedMaterials: Array<string>
+  disabledMaps: Set<MapKey>
+  materialSettings?: StandardMaterialSettings
 }) {
   const { scene } = useGLTF(modelUrl)
   const textures = useTexture(maps)
+  const texRef = useRef(textures)
+  texRef.current = textures
 
   const { clonedScene, originalMaterials } = useMemo(() => {
     const clone = scene.clone(true)
@@ -86,6 +102,10 @@ function CustomModelLoadedMesh({
   }, [scene])
 
   useEffect(() => {
+    const currentTextures = texRef.current as Record<
+      string,
+      Texture | undefined
+    >
     const selectedSet = new Set(selectedMaterials)
     clonedScene.traverse((child) => {
       if (!(child instanceof Mesh)) return
@@ -96,21 +116,16 @@ function CustomModelLoadedMesh({
       const newMaterials = originals.map((mat, i) => {
         const matName = mat.name || `Material ${i}`
         if (selectedSet.has(matName)) {
-          const newMat = new MATERIAL_CONSTRUCTORS[materialType]()
-          for (const def of mapDefs) {
-            const tex = (textures as Record<string, Texture | undefined>)[
-              def.key
-            ]
-            if (!tex) continue
-            tex.wrapS = RepeatWrapping
-            tex.wrapT = RepeatWrapping
-            tex.repeat.set(textureRepeat, textureRepeat)
-            tex.colorSpace =
-              def.colorSpace === 'srgb' ? SRGBColorSpace : LinearSRGBColorSpace
-            tex.needsUpdate = true
-            ;(newMat as any)[def.key] = tex
-          }
-          ;(newMat as any).name = matName
+          const newMat = createMaterial(materialType)
+          applyTextures(
+            newMat,
+            currentTextures,
+            mapDefs,
+            disabledMaps,
+            textureRepeat,
+          )
+          applyMaterialSettings(newMat, materialType, materialSettings)
+          newMat.name = matName
           newMat.needsUpdate = true
           return newMat
         }
@@ -122,11 +137,13 @@ function CustomModelLoadedMesh({
   }, [
     clonedScene,
     originalMaterials,
-    textures,
+    maps,
     materialType,
     mapDefs,
     textureRepeat,
     selectedMaterials,
+    disabledMaps,
+    materialSettings,
   ])
 
   return (

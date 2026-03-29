@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Preview3DShape, PreviewView } from '@/features/preview/components'
+import type {
+  MapKey,
+  StandardMaterialSettings,
+} from '@/features/material-viewer/lib/material-definitions'
+import { DEFAULT_STANDARD_MATERIAL_SETTINGS } from '@/features/material-viewer/lib/material-definitions'
 
 interface NotificationSettings {
   enabled: boolean
@@ -35,6 +40,12 @@ interface SettingsStore {
   setNotifications: (patch: Partial<NotificationSettings>) => void
   previewPreferences: PreviewPreferences
   setPreviewPreferences: (patch: Partial<PreviewPreferences>) => void
+  materialViewerDisabledMaps: MapKey[]
+  setMaterialViewerDisabledMaps: (keys: MapKey[]) => void
+  standardMaterialSettings: StandardMaterialSettings
+  setStandardMaterialSettings: (
+    patch: Partial<StandardMaterialSettings>,
+  ) => void
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -53,6 +64,17 @@ export const useSettingsStore = create<SettingsStore>()(
       setPreviewPreferences: (patch) =>
         set((s) => ({
           previewPreferences: { ...s.previewPreferences, ...patch },
+        })),
+      materialViewerDisabledMaps: [],
+      setMaterialViewerDisabledMaps: (keys) =>
+        set({ materialViewerDisabledMaps: keys }),
+      standardMaterialSettings: DEFAULT_STANDARD_MATERIAL_SETTINGS,
+      setStandardMaterialSettings: (patch) =>
+        set((s) => ({
+          standardMaterialSettings: {
+            ...s.standardMaterialSettings,
+            ...patch,
+          },
         })),
     }),
     { name: 'material-studio-settings' },

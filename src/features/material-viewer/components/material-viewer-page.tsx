@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   MATERIAL_MAPS,
@@ -7,6 +7,7 @@ import {
 } from '../lib/material-definitions'
 import { MapSlot } from './map-slot'
 import { Viewer3D } from './viewer-3d'
+import { StandardMaterialSettingsContent } from './standard-material-settings'
 import type { PreviewSettings } from '@/features/preview/components'
 import type { MapKey, MaterialType } from '../lib/material-definitions'
 import {
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { useSettingsStore } from '@/shared/stores/settings-store'
 import { useModelStore } from '@/shared/stores/model-store'
+import { cn } from '@/shared/lib/utils'
 
 export function MaterialViewerPage() {
   return (
@@ -38,11 +40,15 @@ export function MaterialViewerPage() {
   )
 }
 
+type SidebarTab = 'maps' | 'properties'
+
 function MaterialViewerPageInner() {
   const queryClient = useQueryClient()
   const [materialType, setMaterialType] = useState<MaterialType>(
     'MeshStandardMaterial',
   )
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('maps')
+
   const { data: maps = {} } = useQuery({
     queryKey: ['material-viewer-maps'],
     queryFn: loadMaterialViewerMaps,
@@ -50,7 +56,16 @@ function MaterialViewerPageInner() {
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragTargetKey, setDragTargetKey] = useState<MapKey | null>(null)
-  const { previewPreferences, setPreviewPreferences } = useSettingsStore()
+
+  const {
+    previewPreferences,
+    setPreviewPreferences,
+    materialViewerDisabledMaps,
+    setMaterialViewerDisabledMaps,
+    standardMaterialSettings,
+    setStandardMaterialSettings,
+  } = useSettingsStore()
+
   const { models } = useModelStore()
 
   const environmentFile = useEnvironmentFile(previewPreferences.environmentId)
@@ -60,6 +75,10 @@ function MaterialViewerPageInner() {
   )
 
   const mapDefs = MATERIAL_MAPS[materialType]
+  const disabledMapsSet = useMemo(
+    () => new Set<MapKey>(materialViewerDisabledMaps),
+    [materialViewerDisabledMaps],
+  )
 
   const customModel =
     previewPreferences.shape === 'custom' && previewPreferences.customModelId
@@ -72,6 +91,20 @@ function MaterialViewerPageInner() {
     viewMode: 'split',
     sliderPos: 50,
     view: '3d',
+  }
+
+  function handleMaterialTypeChange(type: MaterialType) {
+    setMaterialType(type)
+    if (type !== 'MeshStandardMaterial' && sidebarTab === 'properties') {
+      setSidebarTab('maps')
+    }
+  }
+
+  function toggleDisabledMap(key: MapKey) {
+    const next = disabledMapsSet.has(key)
+      ? materialViewerDisabledMaps.filter((k) => k !== key)
+      : [...materialViewerDisabledMaps, key]
+    setMaterialViewerDisabledMaps(next)
   }
 
   function loadFileIntoMap(file: File, key: MapKey) {
@@ -126,6 +159,12 @@ function MaterialViewerPageInner() {
           environmentFile={environmentFile}
           customModelUrl={customModelUrl}
           selectedMaterials={customModel?.selectedMaterials}
+          disabledMaps={disabledMapsSet}
+          materialSettings={
+            materialType === 'MeshStandardMaterial'
+              ? standardMaterialSettings
+              : undefined
+          }
         />
         {isDragging && !dragTargetKey && (
           <div className="pointer-events-none absolute inset-0 border-2 border-dashed border-primary bg-primary/10" />
@@ -139,7 +178,7 @@ function MaterialViewerPageInner() {
           </span>
           <Select
             value={materialType}
-            onValueChange={(v) => setMaterialType(v as MaterialType)}
+            onValueChange={(v) => handleMaterialTypeChange(v as MaterialType)}
           >
             <SelectTrigger className="h-7 w-full text-xs">
               <SelectValue />
@@ -154,32 +193,66 @@ function MaterialViewerPageInner() {
           </Select>
         </div>
 
+        <div className="flex shrink-0 border-b border-border/60">
+          {(['maps', 'properties'] as SidebarTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSidebarTab(tab)}
+              disabled={
+                tab === 'properties' && materialType !== 'MeshStandardMaterial'
+              }
+              className={cn(
+                'flex-1 py-2 text-xs font-medium transition-colors',
+                sidebarTab === tab
+                  ? 'border-b-2 border-primary text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+                tab === 'properties' &&
+                  materialType !== 'MeshStandardMaterial' &&
+                  'cursor-not-allowed opacity-40',
+              )}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-1 p-3">
-            {mapDefs.map((def) => (
-              <MapSlot
-                key={def.key}
-                def={def}
-                dataUrl={maps[def.key]}
-                onUpload={async (dataUrl) => {
-                  const blob = await fetch(dataUrl).then((r) => r.blob())
-                  await saveMaterialViewerMap(def.key, blob)
-                  queryClient.invalidateQueries({
-                    queryKey: ['material-viewer-maps'],
-                  })
-                }}
-                onRemove={async () => {
-                  await deleteMaterialViewerMap(def.key)
-                  queryClient.invalidateQueries({
-                    queryKey: ['material-viewer-maps'],
-                  })
-                }}
-                isExternalDragTarget={dragTargetKey === def.key}
-                onDragTargetEnter={(key) => setDragTargetKey(key)}
-                onDragTargetLeave={() => setDragTargetKey(null)}
+          {sidebarTab === 'maps' ? (
+            <div className="space-y-1 p-3">
+              {mapDefs.map((def) => (
+                <MapSlot
+                  key={def.key}
+                  def={def}
+                  dataUrl={maps[def.key]}
+                  isDisabled={disabledMapsSet.has(def.key)}
+                  onToggleDisabled={() => toggleDisabledMap(def.key)}
+                  onUpload={async (dataUrl) => {
+                    const blob = await fetch(dataUrl).then((r) => r.blob())
+                    await saveMaterialViewerMap(def.key, blob)
+                    queryClient.invalidateQueries({
+                      queryKey: ['material-viewer-maps'],
+                    })
+                  }}
+                  onRemove={async () => {
+                    await deleteMaterialViewerMap(def.key)
+                    queryClient.invalidateQueries({
+                      queryKey: ['material-viewer-maps'],
+                    })
+                  }}
+                  isExternalDragTarget={dragTargetKey === def.key}
+                  onDragTargetEnter={(key) => setDragTargetKey(key)}
+                  onDragTargetLeave={() => setDragTargetKey(null)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="p-3">
+              <StandardMaterialSettingsContent
+                settings={standardMaterialSettings}
+                onChange={setStandardMaterialSettings}
               />
-            ))}
-          </div>
+            </div>
+          )}
         </div>
 
         <Separator />

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import { Mesh } from 'three'
 import { FileCollection } from '../lib/opfs'
 import type { Material } from 'three'
@@ -26,7 +27,12 @@ const collection = new FileCollection('models')
 
 function extractMaterialNames(data: ArrayBuffer): Promise<Array<string>> {
   return new Promise((resolve, reject) => {
+    const draco = new DRACOLoader()
+    draco.setDecoderPath(
+      'https://www.gstatic.com/draco/versioned/decoders/1.5.5/',
+    )
     const loader = new GLTFLoader()
+    loader.setDRACOLoader(draco)
     loader.parse(
       data,
       '',
@@ -53,6 +59,7 @@ function extractMaterialNames(data: ArrayBuffer): Promise<Array<string>> {
             mesh.geometry.dispose()
           }
         })
+        draco.dispose()
         resolve(Array.from(names))
       },
       (error) => reject(error),
